@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+langchain
+langchain-community
+langchain-ollama
+langchain-text-splitters
+langchain-chroma
+chromadb
+fastembed
+sqlalchemy
+pypdf
