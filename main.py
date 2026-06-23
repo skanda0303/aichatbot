@@ -1,4 +1,5 @@
 import os
+import time
 import hashlib
 import json
 from fastapi import FastAPI
@@ -92,11 +93,11 @@ else:
 
 if chunks:
     bm25_retriever = BM25Retriever.from_documents(chunks)
-    bm25_retriever.k = 5
+    bm25_retriever.k = 20
     
     vector_retriever = vectorstore.as_retriever(
         search_type="similarity",
-        search_kwargs={"k": 5}
+        search_kwargs={"k": 20}
     )
     
     # Using optimal weights based on evaluation (BM25: 0.3, Vector: 0.7)
@@ -136,7 +137,10 @@ def filter_redundant_docs(docs: list, threshold: float = 0.3) -> list:
 
 def search_docs(query: str) -> str:
     """Queries the vector store for information relevant to the search query."""
+    t_start = time.perf_counter()
     results = retriever.invoke(query)
+    t_retrieve = time.perf_counter() - t_start
+    print(f"  [TIMER] Hybrid retrieval took {t_retrieve:.3f}s")
 
     if not results:
         return "No relevant information found in the documents."
@@ -149,11 +153,14 @@ def search_docs(query: str) -> str:
 
     # Rerank using BAAI/bge-reranker-v2-m3
     if unique_results:
+        t_start_rerank = time.perf_counter()
         pairs = [[query, doc.page_content] for doc in unique_results]
         scores = reranker.predict(pairs)
         scored_docs = list(zip(scores, unique_results))
         scored_docs.sort(key=lambda x: x[0], reverse=True)
         unique_results = [doc for score, doc in scored_docs]
+        t_rerank = time.perf_counter() - t_start_rerank
+        print(f"  [TIMER] Cross-encoder reranking took {t_rerank:.3f}s")
 
     # Associate each doc with its original rank index
     for idx, doc in enumerate(unique_results):
@@ -164,7 +171,10 @@ def search_docs(query: str) -> str:
 
     # Filter out highly redundant overlapping chunks
     # threshold=0.85: discard a chunk if 85%+ of its words already appear in a kept chunk
+    t_start_filter = time.perf_counter()
     filtered_results = filter_redundant_docs(unique_results, threshold=0.85)
+    t_filter = time.perf_counter() - t_start_filter
+    print(f"  [TIMER] Redundancy filtering took {t_filter:.3f}s")
 
     # Sort the filtered results back to their original rank order
     filtered_results.sort(key=lambda d: d.metadata.get("_original_idx", 0))
@@ -269,14 +279,24 @@ class ChatRequest(BaseModel):
 async def chat(req: ChatRequest):
     async def response_generator():
         history = SQLChatMessageHistory(session_id=req.session_id, connection_string="sqlite:///memory.db")
+        t_start = time.perf_counter()
         category = classify_query(req.message, history.messages)
-        print(f"[ROUTER] Route selected: {category} for query: '{req.message}'")
+        t_classify = time.perf_counter() - t_start
+        print(f"[TIMER] Route selected: {category} for query: '{req.message}' (took {t_classify:.3f}s)")
 
         if category == "CONVERSATIONAL":
             messages = [HumanMessage(content=get_conversational_prompt(req.message, history.messages))]
         else:
+            t_cond_start = time.perf_counter()
             condensed = condense_query(req.message, history.messages)
+            t_condense = time.perf_counter() - t_cond_start
+            print(f"[TIMER] Query Condensation took {t_condense:.3f}s (Condensed: '{condensed}')")
+            
+            t_ret_start = time.perf_counter()
             retrieved_context = search_docs(condensed)
+            t_retrieval = time.perf_counter() - t_ret_start
+            print(f"[TIMER] Total Retrieval & Processing took {t_retrieval:.3f}s")
+            
             if retrieved_context == "No relevant information found in the documents.":
                 answer = "The documents do not contain information about this topic."
                 history.add_message(HumanMessage(content=req.message))
@@ -301,10 +321,21 @@ async def chat(req: ChatRequest):
                 ]
 
         full_response = ""
+        t_gen_start = time.perf_counter()
+        first_token = True
+        token_count = 0
         async for chunk in llm.astream(messages):
+            if first_token:
+                t_first_token = time.perf_counter() - t_gen_start
+                print(f"[TIMER] Time to first token: {t_first_token:.3f}s")
+                first_token = False
             token = chunk.content
             full_response += token
+            token_count += 1
             yield token
+        t_gen_total = time.perf_counter() - t_gen_start
+        tokens_per_sec = token_count / t_gen_total if t_gen_total > 0 else 0
+        print(f"[TIMER] LLM generation took {t_gen_total:.3f}s ({token_count} tokens, {tokens_per_sec:.2f} tok/s)")
 
         history.add_message(HumanMessage(content=req.message))
         history.add_message(AIMessage(content=full_response))

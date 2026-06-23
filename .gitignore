@@ -1,0 +1,17 @@
+# Databases and persistent stores
+chroma_db/
+*.db
+*.sqlite3
+
+# PDF files
+*.pdf
+docs/*.pdf
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
