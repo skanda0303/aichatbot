@@ -2,18 +2,22 @@ import os
 import hashlib
 import json
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from langchain_ollama import ChatOllama
+from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_chroma import Chroma
-from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.chat_message_histories import SQLChatMessageHistory
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_community.retrievers import BM25Retriever
+from langchain_classic.retrievers import EnsembleRetriever
+from langchain_core.documents import Document
+from sentence_transformers import CrossEncoder
 
 DOCS_DIR     = "docs"
 HASH_FILE    = "docs_hash.json"
-OLLAMA_MODEL = "qwen3:8b"
+OLLAMA_MODEL = "qwen2.5:3b"
 OLLAMA_URL   = "http://localhost:11434"
 
 def get_docs_fingerprint() -> str:
@@ -40,8 +44,11 @@ def save_fingerprint(h: str):
 
 os.makedirs(DOCS_DIR, exist_ok=True)
 
-embeddings  = FastEmbedEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-vectorstore = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
+embeddings  = OllamaEmbeddings(model="bge-m3")
+vectorstore = Chroma(persist_directory="chroma_db", embedding_function=embeddings, collection_name="bge_m3")
+reranker    = CrossEncoder("BAAI/bge-reranker-v2-m3")
+
+chunks = []
 
 if os.listdir(DOCS_DIR):
     current_fp = get_docs_fingerprint()
@@ -50,12 +57,15 @@ if os.listdir(DOCS_DIR):
 
     if current_fp == stored_fp and existing_ids:
         print(f"[OK] Documents unchanged — reusing existing index ({len(existing_ids)} chunks). Skipping ingestion.")
+        existing_data = vectorstore.get()
+        if existing_data and "documents" in existing_data:
+            for doc_text, metadata in zip(existing_data["documents"], existing_data["metadatas"]):
+                chunks.append(Document(page_content=doc_text, metadata=metadata))
     else:
         print("[INFO] Document changes detected. Re-indexing...")
         raw_docs = PyPDFDirectoryLoader(DOCS_DIR).load()
         
         from collections import defaultdict
-        from langchain_core.documents import Document
         grouped_content = defaultdict(list)
         for d in raw_docs:
             src = d.metadata.get("source", "unknown")
@@ -80,10 +90,49 @@ if os.listdir(DOCS_DIR):
 else:
     print("[INFO] docs/ is empty — no documents ingested.")
 
-retriever = vectorstore.as_retriever(
-    search_type="similarity",
-    search_kwargs={"k": 5}
-)
+if chunks:
+    bm25_retriever = BM25Retriever.from_documents(chunks)
+    bm25_retriever.k = 5
+    
+    vector_retriever = vectorstore.as_retriever(
+        search_type="similarity",
+        search_kwargs={"k": 5}
+    )
+    
+    # Using optimal weights based on evaluation (BM25: 0.3, Vector: 0.7)
+    retriever = EnsembleRetriever(
+        retrievers=[bm25_retriever, vector_retriever],
+        weights=[0.3, 0.7]
+    )
+    print("[OK] Hybrid retriever initialized with BM25 (weight 0.3) and Vector (weight 0.7).")
+else:
+    retriever = vectorstore.as_retriever(
+        search_type="similarity",
+        search_kwargs={"k": 5}
+    )
+    print("[WARNING] No documents found. Defaulting to standard vector retriever.")
+
+
+def clean_text_words(text: str) -> set:
+    return set(w.strip(".,;:()[]●-●*").lower() for w in text.split() if len(w.strip(".,;:()[]●-●*")) > 1)
+
+def filter_redundant_docs(docs: list, threshold: float = 0.3) -> list:
+    unique_docs = []
+    for doc in docs:
+        words = clean_text_words(doc.page_content)
+        is_redundant = False
+        for u_doc in unique_docs:
+            u_words = clean_text_words(u_doc.page_content)
+            if not words or not u_words:
+                continue
+            intersection = words.intersection(u_words)
+            overlap_coef = len(intersection) / min(len(words), len(u_words))
+            if overlap_coef > threshold:
+                is_redundant = True
+                break
+        if not is_redundant:
+            unique_docs.append(doc)
+    return unique_docs
 
 def search_docs(query: str) -> str:
     """Queries the vector store for information relevant to the search query."""
@@ -98,40 +147,49 @@ def search_docs(query: str) -> str:
             seen.add(doc.page_content)
             unique_results.append(doc)
 
+    # Rerank using BAAI/bge-reranker-v2-m3
+    if unique_results:
+        pairs = [[query, doc.page_content] for doc in unique_results]
+        scores = reranker.predict(pairs)
+        scored_docs = list(zip(scores, unique_results))
+        scored_docs.sort(key=lambda x: x[0], reverse=True)
+        unique_results = [doc for score, doc in scored_docs]
+
+    # Associate each doc with its original rank index
+    for idx, doc in enumerate(unique_results):
+        doc.metadata["_original_idx"] = idx
+
+    # Sort by length descending so more complete chunks are kept first by the overlap filter
+    unique_results.sort(key=lambda d: len(d.page_content), reverse=True)
+
+    # Filter out highly redundant overlapping chunks
+    # threshold=0.85: discard a chunk if 85%+ of its words already appear in a kept chunk
+    filtered_results = filter_redundant_docs(unique_results, threshold=0.85)
+
+    # Sort the filtered results back to their original rank order
+    filtered_results.sort(key=lambda d: d.metadata.get("_original_idx", 0))
+
     formatted = []
-    for doc in unique_results:
+    for doc in filtered_results:  # no hard cap — let threshold do the work
+        doc.metadata.pop("_original_idx", None)
         source = os.path.basename(doc.metadata.get("source", "unknown"))
         page   = doc.metadata.get("page", "?")
-        formatted.append(f"[Source: {source}, Page: {page}]\n{doc.page_content}")
+        content = doc.page_content.replace("●", "\n- ")
+        formatted.append(f"[Source: {source}, Page: {page}]\n{content}")
 
     return "\n\n---\n\n".join(formatted)
 
-llm = ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_URL, temperature=0, think=False, num_ctx=8192)
+llm = ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_URL, temperature=0, think=False, num_ctx=8192, num_predict=512)
 
 def classify_query(query: str, history_messages: list) -> str:
     """Classifies user query as either CONVERSATIONAL (chitchat/greetings/meta-history)
     or RAG (factual inquiries about documents)."""
-    history_context = ""
-    if history_messages:
-        recent = history_messages[-4:]
-        formatted = []
-        for msg in recent:
-            role = "User" if msg.type == "human" else "Assistant"
-            formatted.append(f"{role}: {msg.content}")
-        history_context = "Recent Conversation History:\n" + "\n".join(formatted) + "\n\n"
-        
     prompt = (
-        "You are a router that classifies a user's latest message as either 'CONVERSATIONAL' or 'RAG'.\n\n"
-        "DEFINITIONS:\n"
-        "1. 'CONVERSATIONAL': Greetings, general chitchat, or meta-questions *about* the conversation itself "
-        "(e.g., 'hello', 'who are you?', 'what was the first question I asked you?', 'what did we just talk about?').\n"
-        "2. 'RAG': Questions asking for facts, reports, data, summaries, or analyses about topics/documents "
-        "Note: Factual follow-up questions that refer to previous topics"
-        "are RAG queries because they require searching document facts.\n\n"
-        f"{history_context}"
-        f"Latest User Message to Classify: {query}\n\n"
-        "Return ONLY the word 'CONVERSATIONAL' or 'RAG', with no formatting, markdown, or explanation.\n\n"
-        "Classification:"
+        "Classify the following user message.\n\n"
+        "Answer 'CONVERSATIONAL' ONLY if it is simple chitchat, greetings, or asking about the chat history (e.g., 'hello', 'how are you', 'what did I ask before').\n"
+        "Answer 'RAG' for ANY other message, especially questions asking for facts, concepts, definitions, or details about any topic (e.g., 'who were major contributors of GDP?', 'what is inflation?').\n\n"
+        f"Message: {query}\n\n"
+        "Output ONLY the word 'CONVERSATIONAL' or 'RAG':"
     )
     try:
         res = llm.invoke(prompt)
@@ -142,6 +200,7 @@ def classify_query(query: str, history_messages: list) -> str:
     except Exception as e:
         print(f"[ROUTER] Failed classification, falling back to RAG: {e}")
         return "RAG"
+
 
 def condense_query(query: str, history_messages: list) -> str:
     """Rewrites a follow-up query using chat history into a standalone search query."""
@@ -175,53 +234,30 @@ def condense_query(query: str, history_messages: list) -> str:
     try:
         res = llm.invoke(prompt)
         condensed = res.content.strip()
+        if not condensed:
+            print(f"[CONDENSATION] Empty standalone query returned. Falling back to original: '{query}'")
+            return query
         print(f"[CONDENSATION] Original: '{query}' -> Standalone: '{condensed}'")
         return condensed
     except Exception as e:
         print(f"[CONDENSATION] Failed, using raw query: {e}")
         return query
 
-def generate_rag_response(condensed_query: str, retrieved_context: str) -> str:
-    """Generates factual response using ONLY the current retrieved context,
-    preventing any memory leakage or history-bias bugs."""
-    prompt = (
-        "You are a factual document-answering assistant. You are provided with a search query "
-        "and relevant text chunks retrieved from documents.\n\n"
-        "RULES:\n"
-        "1. Your answer must be built EXCLUSIVELY from the provided retrieved text chunks.\n"
-        "2. Do NOT add, infer, or recall anything from your own pre-trained knowledge.\n"
-        "3. Do not be overly cautious: if the retrieved text discusses the topic, answer the query, "
-        "even if the spelling or phrasing in the query differs slightly from the document (e.g. 'focussed' vs 'focused').\n"
-        "4. When the retrieved chunks contain list items, priorities, key areas, or points, "
-        "you MUST present them as a clean Markdown bulleted list (using '-' or '*' on new lines), "
-        "even if the source text has them inline or separated by symbols.\n"
-        "5. If the retrieved chunks do not contain the answer, respond EXACTLY with: "
-        "'The documents do not contain information about this topic.'\n"
-        "6. Always state which document and page your answer comes from.\n\n"
-        f"Retrieved Text Chunks:\n{retrieved_context}\n\n"
-        f"Search Query: {condensed_query}\n\n"
-        "Answer:"
-    )
-    res = llm.invoke(prompt)
-    return res.content.strip()
-
-def generate_conversational_response(query: str, history_messages: list) -> str:
-    """Answers conversational meta-questions directly from the chat history database."""
+def get_conversational_prompt(query: str, history_messages: list) -> str:
     formatted_history = []
     for msg in history_messages[-10:]:
         role = "User" if msg.type == "human" else "Assistant"
         formatted_history.append(f"{role}: {msg.content}")
     history_text = "\n".join(formatted_history)
 
-    prompt = (
+    return (
         "You are a helpful assistant. Answer the user's question directly based on the conversation history below.\n"
+        "If it is a casual message or 'hello', reply back to them in a normal manner"
         "If they ask 'what did I ask before' or similar, list their previous questions from the history.\n\n"
         f"Conversation History:\n{history_text}\n\n"
         f"User message: {query}\n\n"
         "Assistant Response:"
     )
-    res = llm.invoke(prompt)
-    return res.content.strip()
 
 app = FastAPI(title="RAG Chatbot")
 
@@ -231,24 +267,50 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
-    history = SQLChatMessageHistory(session_id=req.session_id, connection_string="sqlite:///memory.db")
-    category = classify_query(req.message, history.messages)
-    print(f"[ROUTER] Route selected: {category} for query: '{req.message}'")
+    async def response_generator():
+        history = SQLChatMessageHistory(session_id=req.session_id, connection_string="sqlite:///memory.db")
+        category = classify_query(req.message, history.messages)
+        print(f"[ROUTER] Route selected: {category} for query: '{req.message}'")
 
-    if category == "CONVERSATIONAL":
-        answer = generate_conversational_response(req.message, history.messages)
-    else:
-        condensed = condense_query(req.message, history.messages)
-        retrieved_context = search_docs(condensed)
-        if retrieved_context == "No relevant information found in the documents.":
-            answer = "The documents do not contain information about this topic."
+        if category == "CONVERSATIONAL":
+            messages = [HumanMessage(content=get_conversational_prompt(req.message, history.messages))]
         else:
-            answer = generate_rag_response(condensed, retrieved_context)
+            condensed = condense_query(req.message, history.messages)
+            retrieved_context = search_docs(condensed)
+            if retrieved_context == "No relevant information found in the documents.":
+                answer = "The documents do not contain information about this topic."
+                history.add_message(HumanMessage(content=req.message))
+                history.add_message(AIMessage(content=answer))
+                yield answer
+                return
+            else:
+                system_prompt = (
+                    "System Instructions:\n"
+                    "1. Answer the user's query using only the facts in the retrieved chunks. Do not use outside knowledge.\n"
+                    "2. If the facts to answer the query are present, state the answer directly and mention the source file and page at the end.\n"
+                    "3. If the facts to answer the query are not present in the chunks, reply exactly with: 'The documents do not contain information about this topic.' Do not explain or add anything else.\n"
+                    "4. Format lists as clean Markdown bullet points using '-' and include all items from the text."
+                )
+                human_content = (
+                    f"Retrieved Text Chunks:\n{retrieved_context}\n\n"
+                    f"User Query: {condensed}"
+                )
+                messages = [
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=human_content)
+                ]
 
-    history.add_message(HumanMessage(content=req.message))
-    history.add_message(AIMessage(content=answer))
+        full_response = ""
+        async for chunk in llm.astream(messages):
+            token = chunk.content
+            full_response += token
+            yield token
 
-    return {"session_id": req.session_id, "answer": answer}
+        history.add_message(HumanMessage(content=req.message))
+        history.add_message(AIMessage(content=full_response))
+
+    return StreamingResponse(response_generator(), media_type="text/event-stream")
+
 
 @app.post("/clear")
 async def clear_chat(req: ChatRequest):

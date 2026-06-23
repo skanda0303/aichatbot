@@ -252,10 +252,19 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ session_id: SESSION_ID, message: text }),
         });
-        const data = await res.json();
-        
-        // Parse markdown formatting for bot responses
-        typing.innerHTML = marked.parse(data.answer);
+
+        typing.textContent = "";
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          typing.innerHTML = marked.parse(buffer);
+          msgs.scrollTop = msgs.scrollHeight;
+        }
       } catch (e) {
         typing.textContent = "Error: could not reach the server.";
       }

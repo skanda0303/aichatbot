@@ -9,3 +9,5 @@ chromadb
 fastembed
 sqlalchemy
 pypdf
+sentence-transformers
+rank-bm25
