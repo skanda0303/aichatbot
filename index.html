@@ -181,13 +181,29 @@
     .messages::-webkit-scrollbar-thumb:hover {
       background: #d1d5db;
     }
+    .clear-btn {
+      background: rgba(255, 255, 255, 0.15) !important;
+      border: 1px solid rgba(255, 255, 255, 0.3) !important;
+      padding: 6px 14px !important;
+      font-size: 12.5px !important;
+      border-radius: 12px !important;
+      box-shadow: none !important;
+      color: white !important;
+    }
+    .clear-btn:hover {
+      background: rgba(255, 255, 255, 0.25) !important;
+      transform: translateY(-1px) !important;
+    }
   </style>
 </head>
 <body>
   <div class="chat-box">
-    <div class="header">
-      <div class="header-icon"></div>
-      <div class="header-title">Document AI Assistant</div>
+    <div class="header" style="justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="header-icon"></div>
+        <div class="header-title">Document AI Assistant</div>
+      </div>
+      <button class="clear-btn" onclick="clearHistory()">Clear Chat</button>
     </div>
     <div class="messages" id="messages">
       <div class="msg bot">Hello! Ask me anything about your documents.</div>
@@ -199,7 +215,7 @@
   </div>
 
   <script>
-    const SESSION_ID = "user-" + Math.random().toString(36).slice(2, 8);
+    let SESSION_ID = "user-" + Math.random().toString(36).slice(2, 8);
 
     // Configure marked options if needed
     marked.setOptions({
@@ -246,6 +262,30 @@
 
       btn.disabled = false;
       msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    async function clearHistory() {
+      try {
+        await fetch("/clear", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: SESSION_ID, message: "" })
+        });
+      } catch (e) {
+        console.error("Failed to notify server of cleared session:", e);
+      }
+      
+      // Generate a fresh session ID
+      SESSION_ID = "user-" + Math.random().toString(36).slice(2, 8);
+      
+      // Clear UI
+      const msgs = document.getElementById("messages");
+      msgs.innerHTML = '<div class="msg bot">Hello! Ask me anything about your documents.</div>';
+      
+      // Reset input
+      const input = document.getElementById("input");
+      input.value = "";
+      input.focus();
     }
   </script>
 </body>
