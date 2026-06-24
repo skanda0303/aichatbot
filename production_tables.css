@@ -1,0 +1,103 @@
+/* production_tables.css
+   Implements professional, fully responsive styling for Markdown tables in a production chat widget.
+   Prevents squishing, handles overflow scroll correctly, and highlights critical information contextually.
+*/
+
+/* Ensure the bot message block allows tables to expand up to full width without strict bubble clipping constraints */
+.msg.bot {
+  max-width: 95% !important; 
+  width: calc(100% - 24px) !important;
+  display: block !important;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Base table styling */
+.msg.bot table {
+  width: 100% !important;
+  display: table !important; /* Forces normal table rendering structure */
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-align: left;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+/* Responsive container wrapper created around standard markdown tables */
+@media (max-width: 600px) {
+  .msg.bot table {
+    display: block !important;
+    overflow-x: auto !important;
+    white-space: nowrap;
+  }
+}
+
+/* Table headers styling */
+.msg.bot th {
+  background: #4f46e5;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 12px 16px;
+  border-bottom: 2px solid #cbd5e1;
+  letter-spacing: 0.01em;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+/* Table cells styling */
+.msg.bot td {
+  padding: 16px 20px; /* Increased padding for better structural space */
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: top;
+  line-height: 1.8; /* Increased line-height for easier reading */
+}
+
+/* Zebra striping */
+.msg.bot tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+/* Hover highlights */
+.msg.bot tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* Key Term/Important Words Highlighting */
+.msg.bot td strong, 
+.msg.bot p strong {
+  color: #4f46e5 !important; /* Production Indigo accent highlight for bold key items */
+  background-color: rgba(79, 70, 229, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Code block highlight adjustments */
+.msg.bot code {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  font-weight: 500;
+}
+
+/* Adjust paragraph margins for better gaps */
+.msg.bot td p {
+  margin-bottom: 12px !important;
+}
+.msg.bot td p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Adjust list gaps inside tables */
+.msg.bot td li {
+  margin-bottom: 8px !important;
+}
+.msg.bot td li:last-child {
+  margin-bottom: 0 !important;
+}
+

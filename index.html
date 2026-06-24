@@ -195,6 +195,7 @@
       transform: translateY(-1px) !important;
     }
   </style>
+  <link rel="stylesheet" href="production_tables.css">
 </head>
 <body>
   <div class="chat-box">
@@ -246,6 +247,7 @@
       msgs.appendChild(typing);
       msgs.scrollTop = msgs.scrollHeight;
 
+      const startTime = performance.now();
       try {
         const res = await fetch("/chat", {
           method: "POST",
@@ -265,6 +267,21 @@
           typing.innerHTML = marked.parse(buffer);
           msgs.scrollTop = msgs.scrollHeight;
         }
+
+        const endTime = performance.now();
+        const durationSec = ((endTime - startTime) / 1000).toFixed(2);
+
+        // Add a clean, styled time element below the bot message container
+        const timeDiv = document.createElement("div");
+        timeDiv.style.fontSize = "11px";
+        timeDiv.style.color = "#9ca3af";
+        timeDiv.style.alignSelf = "flex-start";
+        timeDiv.style.marginTop = "-12px";
+        timeDiv.style.marginBottom = "4px";
+        timeDiv.style.paddingLeft = "8px";
+        timeDiv.textContent = `Response Time: ${durationSec}s`;
+        msgs.appendChild(timeDiv);
+
       } catch (e) {
         typing.textContent = "Error: could not reach the server.";
       }
