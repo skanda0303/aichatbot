@@ -135,15 +135,88 @@ def filter_redundant_docs(docs: list, threshold: float = 0.3) -> list:
             unique_docs.append(doc)
     return unique_docs
 
-def search_docs(query: str) -> str:
+def analyze_and_build_prompt(query: str, confidence: str) -> tuple[int, str]:
+    """
+    Uses the LLM itself to understand the query's intent and produce:
+      - k: how many chunks to retrieve (as an integer)
+      - system_prompt: the full, tailored system prompt for the answering step
+    Returns (k, system_prompt). Falls back to safe defaults on any failure.
+    """
+    meta_prompt = (
+        "You are an expert RAG pipeline orchestrator. Analyze the following user query and produce a JSON object.\n\n"
+        f"User Query: {query}\n"
+        f"Retrieval Confidence: {confidence}  (HIGH means top document score is strong, LOW means weak relevance)\n\n"
+        "Produce a valid JSON object with exactly these keys:\n"
+        '  \"k\": integer between 5 and 20 — how many document chunks to retrieve. '
+        "Use a higher number for complex, multi-part, or broad questions; lower for simple factual lookups.\n"
+        '  \"system_prompt\": string — a complete, detailed system prompt for an LLM that will answer this query '
+        "using only retrieved document chunks. The prompt must:\n"
+        "    - Instruct the LLM to answer solely from provided chunks (no outside knowledge).\n"
+        "    - Specify the ideal response format for THIS type of query "
+        "(e.g. bullet list, comparison table, chronological timeline, prose paragraph, concise fact, etc.).\n"
+        "    - Instruct the LLM to cite the source file and page at the end.\n"
+        "    - If the user asked for a specific word count or detail level, include an instruction to meet it by "
+        "elaborating on and explaining the retrieved facts without adding outside information.\n"
+        "    - If confidence is LOW, add a caution to only state what is explicitly in the text.\n"
+        "    - End with: if no relevant facts are found, reply exactly: "
+        "'The documents do not contain information about this topic.'\n"
+        "Output ONLY the raw JSON object, no markdown fences, no extra text."
+    )
+    try:
+        res = llm.invoke(meta_prompt)
+        raw = res.content.strip()
+        # Strip accidental markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        data = json.loads(raw)
+        k = int(data.get("k", 8))
+        k = max(5, min(20, k))   # clamp to [5, 20]
+        system_prompt = str(data.get("system_prompt", "")).strip()
+        if not system_prompt:
+            raise ValueError("Empty system_prompt returned by LLM")
+        print(f"[DYNAMIC] LLM analysis -> k={k}")
+        print(f"[DYNAMIC] System Prompt:\n{system_prompt}")
+        return k, system_prompt
+    except Exception as e:
+        print(f"[DYNAMIC] LLM analysis failed ({e}), using safe defaults.")
+        fallback_prompt = (
+            "Answer the user's query using only the facts in the retrieved chunks. "
+            "Do not use outside knowledge. Cite the source file and page at the end. "
+            "If the answer is not present in the chunks, reply exactly with: "
+            "'The documents do not contain information about this topic.'"
+        )
+        return 8, fallback_prompt
+
+def self_rag_rewrite(query: str) -> str:
+    prompt = (
+        f"You are a search query optimizer. The search for '{query}' returned no relevant documents.\n"
+        "Rewrite this query into a different, broader, or alternative search query using synonyms. "
+        "Do NOT answer the question. Output ONLY the new query:"
+    )
+    try:
+        res = llm.invoke(prompt)
+        new_query = res.content.strip()
+        print(f"[Self-RAG] Rewrote query: '{query}' -> '{new_query}'")
+        return new_query
+    except Exception as e:
+        print(f"[Self-RAG] Failed to rewrite query: {e}")
+        return query
+
+def search_docs(query: str, k: int = 8) -> tuple[str, float]:
     """Queries the vector store for information relevant to the search query."""
+    if chunks:
+        bm25_retriever.k = k
+        vector_retriever.search_kwargs["k"] = k
+
     t_start = time.perf_counter()
     results = retriever.invoke(query)
     t_retrieve = time.perf_counter() - t_start
     print(f"  [TIMER] Hybrid retrieval took {t_retrieve:.3f}s")
 
     if not results:
-        return "No relevant information found in the documents."
+        return "No relevant information found in the documents.", -100.0
 
     seen, unique_results = set(), []
     for doc in results:
@@ -151,16 +224,18 @@ def search_docs(query: str) -> str:
             seen.add(doc.page_content)
             unique_results.append(doc)
 
+    max_score = -100.0
     # Rerank using BAAI/bge-reranker-v2-m3
     if unique_results:
         t_start_rerank = time.perf_counter()
         pairs = [[query, doc.page_content] for doc in unique_results]
         scores = reranker.predict(pairs)
+        max_score = float(max(scores))
         scored_docs = list(zip(scores, unique_results))
         scored_docs.sort(key=lambda x: x[0], reverse=True)
         unique_results = [doc for score, doc in scored_docs]
         t_rerank = time.perf_counter() - t_start_rerank
-        print(f"  [TIMER] Cross-encoder reranking took {t_rerank:.3f}s")
+        print(f"  [TIMER] Cross-encoder reranking took {t_rerank:.3f}s (Max score: {max_score:.3f})")
 
     # Associate each doc with its original rank index
     for idx, doc in enumerate(unique_results):
@@ -187,7 +262,7 @@ def search_docs(query: str) -> str:
         content = doc.page_content.replace("●", "\n- ")
         formatted.append(f"[Source: {source}, Page: {page}]\n{content}")
 
-    return "\n\n---\n\n".join(formatted)
+    return "\n\n---\n\n".join(formatted), max_score
 
 llm = ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_URL, temperature=0, think=False, num_ctx=8192, num_predict=512)
 
@@ -293,24 +368,38 @@ async def chat(req: ChatRequest):
             print(f"[TIMER] Query Condensation took {t_condense:.3f}s (Condensed: '{condensed}')")
             
             t_ret_start = time.perf_counter()
-            retrieved_context = search_docs(condensed)
+
+            # Step 1: Initial retrieval with a neutral k to get a confidence baseline
+            retrieved_context, max_score = search_docs(condensed, k=10)
+
+            # Self-RAG: If initial confidence is low, rewrite query and retrieve again
+            if max_score < -2.0:
+                print(f"[Self-RAG] Low confidence ({max_score:.3f}). Rewriting query...")
+                rewritten_query = self_rag_rewrite(condensed)
+                retrieved_context, max_score = search_docs(rewritten_query, k=10)
+                condensed = rewritten_query
+
             t_retrieval = time.perf_counter() - t_ret_start
-            print(f"[TIMER] Total Retrieval & Processing took {t_retrieval:.3f}s")
-            
-            if retrieved_context == "No relevant information found in the documents.":
+            confidence = "HIGH" if max_score >= -2.0 else "LOW"
+            print(f"[TIMER] Total Retrieval & Processing took {t_retrieval:.3f}s (Final Max Score: {max_score:.3f}, Confidence: {confidence})")
+
+            if retrieved_context == "No relevant information found in the documents." or not retrieved_context.strip():
                 answer = "The documents do not contain information about this topic."
                 history.add_message(HumanMessage(content=req.message))
                 history.add_message(AIMessage(content=answer))
                 yield answer
                 return
             else:
-                system_prompt = (
-                    "System Instructions:\n"
-                    "1. Answer the user's query using only the facts in the retrieved chunks. Do not use outside knowledge.\n"
-                    "2. If the facts to answer the query are present, state the answer directly and mention the source file and page at the end.\n"
-                    "3. If the facts to answer the query are not present in the chunks, reply exactly with: 'The documents do not contain information about this topic.' Do not explain or add anything else.\n"
-                    "4. Format lists as clean Markdown bullet points using '-' and include all items from the text."
-                )
+                # Step 2: LLM decides final k and generates a query-tailored system prompt
+                t_dyn_start = time.perf_counter()
+                k_final, system_prompt = analyze_and_build_prompt(condensed, confidence)
+                t_dyn = time.perf_counter() - t_dyn_start
+                print(f"[TIMER] Dynamic analysis took {t_dyn:.3f}s")
+
+                # Step 3: Re-retrieve with the LLM-chosen k if it differs meaningfully from 10
+                if k_final != 10:
+                    retrieved_context, _ = search_docs(condensed, k=k_final)
+
                 human_content = (
                     f"Retrieved Text Chunks:\n{retrieved_context}\n\n"
                     f"User Query: {condensed}"
