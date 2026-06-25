@@ -137,21 +137,24 @@ def filter_redundant_docs(docs: list, threshold: float = 0.3) -> list:
             unique_docs.append(doc)
     return unique_docs
 
-def analyze_and_build_prompt(query: str, confidence: str) -> tuple[int, str]:
+def analyze_and_build_prompt(query: str, confidence: str) -> tuple[int, str, float, int]:
     """
     Uses the LLM itself to understand the query's intent and produce:
       - k: how many chunks to retrieve (as an integer)
       - system_prompt: the full, tailored system prompt for the answering step
-    Returns (k, system_prompt). Falls back to safe defaults on any failure.
+      - temperature: dynamic temperature setting
+      - max_tokens: dynamic max tokens setting
+    Returns (k, system_prompt, temperature, max_tokens). Falls back to safe defaults on any failure.
     """
     meta_prompt = (
         "You are an expert RAG pipeline orchestrator. Analyze the following user query and produce a JSON object.\n\n"
         f"User Query: {query}\n"
         f"Retrieval Confidence: {confidence}  (HIGH means top document score is strong, LOW means weak relevance)\n\n"
         "Produce a valid JSON object with exactly these keys:\n"
-        '  \"k\": integer between 5 and 20 — how many document chunks to retrieve. '
-        "Use a higher number for complex, multi-part, or broad questions; lower for simple factual lookups.\n"
-        '  \"system_prompt\": string — a complete, detailed system prompt for an LLM that will answer this query using only retrieved document chunks. The prompt must:\n'
+        '  "k": integer between 5 and 8 — how many document chunks to retrieve. Use a higher number for complex, multi-part, or broad questions; lower for simple factual lookups.\n'
+        '  "temperature": float between 0.0 and 0.8 — the temperature for the LLM response. Use 0.0 for precise factual/numerical answers, 0.3-0.5 for summaries, and up to 0.8 for creative synthesis.\n'
+        '  "max_tokens": integer between 128 and 1024 — maximum tokens to generate.\n'
+        '  "system_prompt": string — a complete, detailed system prompt for an LLM that will answer this query using only retrieved document chunks. The prompt must:\n'
         "    - Instruct the LLM to answer solely from provided chunks (no outside knowledge).\n"
         "    - Specify the ideal response format strictly based on query type: \n"
         "        1. For comparisons or side-by-side analysis, explicitly instruct the LLM to output a clean, neat Markdown table with distinct headers.\n"
@@ -173,13 +176,17 @@ def analyze_and_build_prompt(query: str, confidence: str) -> tuple[int, str]:
                 raw = raw[4:]
         data = json.loads(raw)
         k = int(data.get("k", 8))
-        k = max(5, min(20, k))   # clamp to [5, 20]
+        k = max(5, min(8, k))   # clamp to [5, 8]
         system_prompt = str(data.get("system_prompt", "")).strip()
         if not system_prompt:
             raise ValueError("Empty system_prompt returned by LLM")
-        print(f"[DYNAMIC] LLM analysis -> k={k}")
+        
+        temperature = max(0.0, min(1.0, float(data.get("temperature", 0.0))))
+        max_tokens = max(64, min(2048, int(data.get("max_tokens", 1024))))
+        
+        print(f"[DYNAMIC] LLM analysis -> k={k}, temperature={temperature}, max_tokens={max_tokens}")
         print(f"[DYNAMIC] System Prompt:\n{system_prompt}")
-        return k, system_prompt
+        return k, system_prompt, temperature, max_tokens
     except Exception as e:
         print(f"[DYNAMIC] LLM analysis failed ({e}), using safe defaults.")
         fallback_prompt = (
@@ -188,7 +195,7 @@ def analyze_and_build_prompt(query: str, confidence: str) -> tuple[int, str]:
             "If the answer is not present in the chunks, reply exactly with: "
             "'The documents do not contain information about this topic.'"
         )
-        return 8, fallback_prompt
+        return 8, fallback_prompt, 0.0, 1024
 
 def self_rag_rewrite(query: str) -> str:
     prompt = (
@@ -392,9 +399,9 @@ async def chat(req: ChatRequest):
             else:
                 # Step 2: LLM determines k and writes a query-tailored system prompt
                 t_dyn_start = time.perf_counter()
-                k_final, system_prompt = analyze_and_build_prompt(condensed, confidence)
+                k_final, system_prompt, temp, max_tokens = analyze_and_build_prompt(condensed, confidence)
                 t_dyn = time.perf_counter() - t_dyn_start
-                print(f"[TIMER] Dynamic analysis took {t_dyn:.3f}s (k_final={k_final})")
+                print(f"[TIMER] Dynamic analysis took {t_dyn:.3f}s (k_final={k_final}, temp={temp}, max_tokens={max_tokens})")
 
                 # Step 3: Slice ranked docs to k_final — no extra retrieval or reranking needed
                 if k_final < len(ranked_docs):
@@ -419,7 +426,12 @@ async def chat(req: ChatRequest):
         t_gen_start = time.perf_counter()
         first_token = True
         token_count = 0
-        async for chunk in llm.astream(messages):
+        if category == "CONVERSATIONAL":
+            bound_llm = llm
+        else:
+            bound_llm = llm.bind(options={"temperature": temp, "num_predict": max_tokens})
+
+        async for chunk in bound_llm.astream(messages):
             if first_token:
                 t_first_token = time.perf_counter() - t_gen_start
                 print(f"[TIMER] Time to first token: {t_first_token:.3f}s")

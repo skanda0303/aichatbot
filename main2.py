@@ -127,6 +127,41 @@ def filter_redundant_docs(docs: list, threshold: float = 0.85) -> list:
             unique_docs.append(doc)
     return unique_docs
 
+_STOP_WORDS = {
+    "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "do", "does", "did", "will", "would", "shall",
+    "should", "may", "might", "can", "could", "of", "in", "on", "at",
+    "to", "for", "with", "by", "from", "up", "about", "into", "through",
+    "and", "or", "but", "not", "so", "if", "as", "it", "its", "this",
+    "that", "these", "those", "i", "you", "he", "she", "we", "they",
+    "me", "him", "her", "us", "them", "who", "what", "which", "when",
+    "where", "how", "why", "my", "your", "his", "her", "our", "their",
+    "tell", "give", "explain", "describe", "list", "show"
+}
+
+def is_context_relevant(query: str, context: str, threshold: float = 0.25) -> bool:
+    """
+    Returns True only if the retrieved context contains enough of the
+    query's key terms. Prevents the LLM from being called with loosely
+    matched chunks that lead to hallucination.
+    """
+    def key_words(text: str) -> set:
+        return {
+            w.strip(".,;:()[]!?\"'").lower()
+            for w in text.split()
+            if len(w.strip(".,;:()[]!?\"'")) > 2
+            and w.strip(".,;:()[]!?\"'").lower() not in _STOP_WORDS
+        }
+
+    query_keys = key_words(query)
+    if not query_keys:
+        return True 
+
+    context_words = key_words(context)
+    overlap = len(query_keys & context_words) / len(query_keys)
+    print(f"[RELEVANCE GATE] query_keys={query_keys}, overlap={overlap:.2f} (threshold={threshold})")
+    return overlap >= threshold
+
 llm = ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_URL, temperature=0, think=False, num_ctx=8192, num_predict=1024)
 
 def analyze_and_build_prompt(query: str, confidence: str) -> tuple[int, str]:
@@ -147,9 +182,22 @@ def analyze_and_build_prompt(query: str, confidence: str) -> tuple[int, str]:
         "    - If the user asked for a specific word count or detail level, include an instruction to meet it by "
         "elaborating on and explaining the retrieved facts without adding outside information.\n"
         "    - If confidence is LOW, add a caution to only state what is explicitly in the text.\n"
-        "    - End with: if no relevant facts are found in the chunks to answer the query, the LLM must reply ONLY and exactly with the fallback message: 'The documents do not contain information about this topic.' It must NOT attempt to answer using outside knowledge or parametric memory under any circumstances.\n"
+        "    - if no relevant facts are found in the chunks to answer the query, the LLM must reply ONLY and exactly with the fallback message: 'The documents do not contain information about this topic.' It must NOT attempt to answer using outside knowledge or parametric memory under any circumstances.\n"
         "Output ONLY the raw JSON object, no markdown fences, no extra text."
     )
+    # This prefix is ALWAYS prepended — never left to the dynamic LLM to enforce.
+    GROUNDING_PREFIX = (
+        "STRICT RULE — YOU MUST FOLLOW THIS ABOVE ALL ELSE:\n"
+        "You are a document-grounded assistant. You ONLY answer using the exact "
+        "text provided in the 'Retrieved Text Chunks' below.\n"
+        "You MUST NOT use any knowledge from your training data, parametric memory, "
+        "or any source outside the provided chunks.\n"
+        "If the retrieved chunks do not contain enough information to answer the question, "
+        "you MUST reply with EXACTLY this sentence and nothing else:\n"
+        "\"The documents do not contain information about this topic.\"\n"
+        "Do NOT attempt to guess, infer, or supplement with general knowledge under any circumstances.\n\n"
+    )
+
     try:
         res = llm.invoke(meta_prompt)
         raw = res.content.strip()
@@ -163,12 +211,12 @@ def analyze_and_build_prompt(query: str, confidence: str) -> tuple[int, str]:
         if not system_prompt:
             raise ValueError("Empty system_prompt")
         print(f"[DYNAMIC] k={k}")
-        return k, system_prompt
+        return k, GROUNDING_PREFIX + system_prompt
     except Exception as e:
         print(f"[DYNAMIC] LLM analysis failed ({e}), using fallback.")
         return 8, (
+            GROUNDING_PREFIX +
             "Answer the user's query using only the facts in the retrieved chunks. "
-            "Do not use outside knowledge. "
             "If the answer is not present in the chunks, reply exactly with: "
             "'The documents do not contain information about this topic.'"
         )
@@ -252,16 +300,15 @@ def condense_query(query: str, history_messages: list) -> str:
         for m in history_messages
     )
     prompt = (
-        "You are an expert query refiner. Rewrite the follow-up question into a standalone search query "
-        "using the conversation history to resolve pronouns and implicit references.\n\n"
+        "You are an expert query refiner. Your job is to decide if a follow-up question depends on the conversation history.\n\n"
         "RULES:\n"
-        "1. Resolve pronouns by looking back at the history.\n"
-        "2. Do NOT add unrelated topics from history.\n"
-        "3. Keep it focused and optimized for vector search. Do NOT answer.\n"
-        "4. If already standalone, return it as-is.\n\n"
+        "1. DETECT TOPIC SHIFTS: If the follow-up question introduces a new topic, a new acronym, or a new entity (such as 'GDP', 'RBI', or 'Bose') that is unrelated to the previous context, do NOT modify the question. Output it EXACTLY as-is.\n"
+        "2. RESOLVE PRONOUNS: If the follow-up question uses pronouns (it, he, she, they, that, this, those) or implicit references to refer to things in the history, rewrite it to be standalone by replacing the pronouns with the correct subject.\n"
+        "3. DO NOT BLEND TOPICS: Never mix previous topics into a new question. If the user asks a completely new question, leave it alone.\n"
+        "4. DO NOT ANSWER: Under no circumstances should you answer the query.\n\n"
         f"Conversation History:\n{history_text}\n\n"
         f"Follow-up Question: {query}\n\n"
-        "Standalone Search Query:"
+        "Standalone Search Query (Output ONLY the query):"
     )
     try:
         res = llm.invoke(prompt)
@@ -324,6 +371,19 @@ async def chat(req: ChatRequest):
                 history.add_message(AIMessage(content=answer))
                 yield answer
                 return
+
+            # ── Relevance Gate ────────────────────────────────────────────────
+            # Check that the retrieved chunks actually contain the query's
+            # key terms. If not, the LLM would hallucinate — stop early.
+            if not is_context_relevant(condensed, retrieved_context, threshold=0.25):
+                print("[RELEVANCE GATE] Context not relevant enough — returning fallback.")
+                answer = "The documents do not contain information about this topic."
+                history.add_message(HumanMessage(content=req.message))
+                history.add_message(AIMessage(content=answer))
+                yield answer
+                return
+            # ─────────────────────────────────────────────────────────────────
+
             else:
                 t_dyn = time.perf_counter()
                 k_final, system_prompt = analyze_and_build_prompt(condensed, "HIGH")
