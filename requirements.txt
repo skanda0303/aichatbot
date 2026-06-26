@@ -13,3 +13,4 @@ sentence-transformers
 rank-bm25
 sentencepiece
 protobuf
+ddgs
