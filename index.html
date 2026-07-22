@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <link rel="stylesheet" href="/production_tables.css" />
   <style>
     :root {
@@ -242,21 +243,33 @@
     body.dark .doc-card:hover, body.dark .doc-card.selected { border-color:#2c4f3d; background:#1b2d26; }
     .doc-icon { display:grid; place-items:center; width:30px; height:35px; border-radius:6px; color:#fff; background:var(--orange); font-size:9px; font-weight:700; }
     .doc-icon.csv { background:#4c8c73; } .doc-icon.txt { background:#6f7f87; }
-    .doc-card strong { display:block; max-width:210px; overflow:hidden; color:var(--ink); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+    .doc-card strong { display:block; max-width:140px; overflow:hidden; color:var(--ink); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
     .doc-card small { display:block; margin-top:4px; color:var(--muted); font-size:10px; }
+    .doc-card-del { padding:4px 8px; border:1px solid #f8a6a8; border-radius:6px; background:#fff0f0; color:#e5484d; font-size:11px; font-weight:700; cursor:pointer; transition:.2s; flex-shrink:0; }
+    .doc-card-del:hover { background:#e5484d; color:#fff; border-color:#e5484d; }
+    body.dark .doc-card-del { background:#3b181a; color:#ff6b6b; border-color:#5c2528; }
+    body.dark .doc-card-del:hover { background:#ff6b6b; color:#fff; }
     
     /* Viewer overlays */
     .viewer { position:fixed; z-index:10; inset:4vh 5vw; display:none; padding:24px; border:1px solid #d8e1d7; border-radius:18px; background:#fff; box-shadow:0 25px 80px rgba(23,34,31,.25); }
     body.dark .viewer { background:#1a2522; border-color:#2f3d38; box-shadow:0 25px 80px rgba(0,0,0,.5); }
     .viewer.open { display:block; animation:rise .25s ease both; }
     .viewer-label { color:var(--green); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
-    .viewer h3 { overflow:hidden; margin:8px 0 16px; padding-right:125px; font:600 19px 'Space Grotesk'; text-overflow:ellipsis; white-space:nowrap; }
+    .viewer h3 { overflow:hidden; margin:8px 0 16px; padding-right:280px; font:600 19px 'Space Grotesk'; text-overflow:ellipsis; white-space:nowrap; }
     .viewer-actions { position:absolute; top:21px; right:22px; display:flex; gap:8px; }
-    .viewer-actions button { padding:8px 11px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); font-size:11px; font-weight:700; }
+    .viewer-actions button { padding:8px 11px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); font-size:11px; font-weight:700; cursor:pointer; }
     body.dark .viewer-actions button { background:#25332f; border-color:#2f3d38; color:#fff; }
     .viewer-actions button:hover { border-color:var(--green); color:var(--green); }
+    .viewer-actions button.danger-btn { color:#e5484d; border-color:#f8a6a8; background:#fff0f0; }
+    .viewer-actions button.danger-btn:hover { background:#e5484d; color:#fff; border-color:#e5484d; }
+    body.dark .viewer-actions button.danger-btn { color:#ff6b6b; border-color:#5c2528; background:#3b181a; }
+    body.dark .viewer-actions button.danger-btn:hover { background:#ff6b6b; color:#fff; }
     .viewer iframe { width:100%; height:calc(92vh - 115px); border:0; border-radius:9px; background:#f3f5f1; }
     body.dark .viewer iframe { background:#121a18; }
+    .pdf-viewer-wrap { height:calc(92vh - 115px); overflow-y:auto; padding:16px; border-radius:9px; background:#4a5155; display:flex; flex-direction:column; align-items:center; gap:16px; }
+    body.dark .pdf-viewer-wrap { background:#141d1b; }
+    .pdf-page-canvas { max-width:100%; border-radius:4px; box-shadow:0 6px 18px rgba(0,0,0,0.3); background:#fff; }
+    .pdf-loading-text { color:#fff; font-size:13px; font-weight:500; margin-top:20px; }
     .viewer .text-preview { height:calc(92vh - 115px); overflow:auto; padding:18px; border-radius:9px; background:#f3f5f1; color:#4e5b54; font:13px/1.75 ui-monospace,monospace; white-space:pre-wrap; }
     body.dark .viewer .text-preview { background:#121a18; color:#a3b2ab; }
     
@@ -317,7 +330,7 @@
       <div class="panel-title"><h2>Indexed documents</h2><div style="display:flex;align-items:center;gap:6px"><span class="count" id="doc-count">0</span><button id="upload-doc-btn" class="upload-btn" title="Upload document to docs_multi">+ Upload</button><input type="file" id="upload-doc-file" accept=".pdf,.csv,.txt,.md,.json" style="display:none" /></div></div>
       <input type="text" id="doc-search" placeholder="Filter documents..." class="doc-search-input" />
       <div class="doc-list" id="doc-list"><div class="empty">Loading indexed documents...</div></div>
-      <div class="viewer-backdrop" id="viewer-backdrop"></div><div class="viewer" id="viewer"><div class="viewer-label">Open file</div><h3 id="viewer-title">Choose a source</h3><div class="viewer-actions"><button id="viewer-download">Download</button><button id="viewer-close">Close</button></div><div class="empty" id="viewer-empty">Select a document to read it here. Files stay in this workspace.</div></div>
+      <div class="viewer-backdrop" id="viewer-backdrop"></div><div class="viewer" id="viewer"><div class="viewer-label">Open file</div><h3 id="viewer-title">Choose a source</h3><div class="viewer-actions"><button id="viewer-open-tab" title="Open file in new browser tab">Open Tab ↗</button><button id="viewer-download">Download</button><button id="viewer-delete" class="danger-btn" title="Delete document from docs_multi">Delete 🗑</button><button id="viewer-close">Close</button></div><div class="empty" id="viewer-empty">Select a document to read it here. Files stay in this workspace.</div></div>
     </aside>
   </main>
   <script>
@@ -355,11 +368,115 @@
     function clearWelcome() { const welcome = document.getElementById("welcome"); if (welcome) welcome.remove(); }
     function setStatus(text) { document.getElementById("status-text").textContent = text; }
 
-    async function loadDocuments() { try { const res = await fetch("/api/documents"); if (!res.ok) throw new Error(); const data = await res.json(); const list = document.getElementById("doc-list"); document.getElementById("doc-count").textContent = data.documents.length; list.innerHTML = ""; if (!data.documents.length) { list.innerHTML = '<div class="empty">No supported files found in docs_multi.</div>'; return; } data.documents.forEach(doc => { const card = document.createElement("button"); card.className = "doc-card"; card.innerHTML = `<span class="doc-icon ${doc.type.toLowerCase()}">${doc.type.slice(0,3)}</span><span><strong title="${doc.name}">${doc.name}</strong><small>${doc.type} · ${formatSize(doc.size)}</small></span>`; card.onclick = () => selectDocument(doc, card); list.appendChild(card); }); } catch { document.getElementById("doc-list").innerHTML = '<div class="empty">Document index unavailable. Start multi-agent server on port 8004.</div>'; } }
-    async function selectDocument(doc, card) { document.querySelectorAll(".doc-card").forEach(el => el.classList.remove("selected")); card.classList.add("selected"); activeDocument = doc; document.getElementById("viewer-title").textContent = doc.name; document.getElementById("viewer-empty")?.remove(); document.querySelector("#viewer iframe, #viewer .text-preview, #viewer .viewer-error")?.remove(); document.getElementById("viewer").classList.add("open"); document.getElementById("viewer-backdrop").classList.add("open"); if (doc.type === "PDF") { const frame = document.createElement("iframe"); frame.title = doc.name; frame.src = doc.url; frame.onload = () => frame.classList.add("loaded"); frame.onerror = () => showViewerError(); document.getElementById("viewer").appendChild(frame); } else { try { const response = await fetch(doc.url); if (!response.ok) throw new Error(); const text = await response.text(); const preview = document.createElement("div"); preview.className = "text-preview"; preview.textContent = text; document.getElementById("viewer").appendChild(preview); } catch { showViewerError(); } } }
-    function showViewerError() { const error = document.createElement("div"); error.className = "empty viewer-error"; error.textContent = "This file cannot render in preview."; document.getElementById("viewer").appendChild(error); }
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+
+    async function loadDocuments() {
+      try {
+        const res = await fetch("/api/documents");
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const list = document.getElementById("doc-list");
+        document.getElementById("doc-count").textContent = data.documents.length;
+        list.innerHTML = "";
+        if (!data.documents.length) {
+          list.innerHTML = '<div class="empty">No supported files found in docs_multi.</div>';
+          return;
+        }
+        data.documents.forEach(doc => {
+          const card = document.createElement("button");
+          card.className = "doc-card";
+          const safeName = doc.name.replace(/'/g, "\\'");
+          card.innerHTML = `<span class="doc-icon ${doc.type.toLowerCase()}">${doc.type.slice(0,3)}</span><span style="flex:1;min-width:0"><strong title="${doc.name}">${doc.name}</strong><small>${doc.type} · ${formatSize(doc.size)}</small></span><button class="doc-card-del" title="Delete document from docs_multi" onclick="event.stopPropagation(); deleteDocumentByName('${safeName}')">Delete</button>`;
+          card.onclick = () => selectDocument(doc, card);
+          list.appendChild(card);
+        });
+      } catch {
+        document.getElementById("doc-list").innerHTML = '<div class="empty">Document index unavailable. Start multi-agent server.</div>';
+      }
+    }
+
+    async function selectDocument(doc, card) {
+      document.querySelectorAll(".doc-card").forEach(el => el.classList.remove("selected"));
+      if (card) card.classList.add("selected");
+      activeDocument = doc;
+      document.getElementById("viewer-title").textContent = doc.name;
+      document.getElementById("viewer-empty")?.remove();
+      document.querySelector("#viewer iframe, #viewer .pdf-viewer-wrap, #viewer .text-preview, #viewer .viewer-error")?.remove();
+      document.getElementById("viewer").classList.add("open");
+      document.getElementById("viewer-backdrop").classList.add("open");
+
+      if (doc.type === "PDF") {
+        const wrap = document.createElement("div");
+        wrap.className = "pdf-viewer-wrap";
+        wrap.innerHTML = '<div class="pdf-loading-text">Rendering PDF pages…</div>';
+        document.getElementById("viewer").appendChild(wrap);
+
+        if (window.pdfjsLib) {
+          try {
+            const pdf = await pdfjsLib.getDocument(doc.url).promise;
+            wrap.innerHTML = "";
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+              const page = await pdf.getPage(pageNum);
+              const viewport = page.getViewport({ scale: 1.25 });
+              const canvas = document.createElement("canvas");
+              canvas.className = "pdf-page-canvas";
+              const context = canvas.getContext("2d");
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+              wrap.appendChild(canvas);
+              await page.render({ canvasContext: context, viewport: viewport }).promise;
+            }
+          } catch (err) {
+            console.warn("PDF.js render error:", err);
+            wrap.remove();
+            const frame = document.createElement("iframe");
+            frame.title = doc.name;
+            frame.src = doc.url;
+            document.getElementById("viewer").appendChild(frame);
+          }
+        } else {
+          wrap.remove();
+          const frame = document.createElement("iframe");
+          frame.title = doc.name;
+          frame.src = doc.url;
+          document.getElementById("viewer").appendChild(frame);
+        }
+      } else {
+        try {
+          const response = await fetch(doc.url);
+          if (!response.ok) throw new Error();
+          const text = await response.text();
+          const preview = document.createElement("div");
+          preview.className = "text-preview";
+          preview.textContent = text;
+          document.getElementById("viewer").appendChild(preview);
+        } catch {
+          showViewerError();
+        }
+      }
+    }
+
+    function showViewerError() { const error = document.createElement("div"); error.className = "empty viewer-error"; error.textContent = "This file cannot render in preview. Click 'Open Tab' or 'Download' above."; document.getElementById("viewer").appendChild(error); }
     function closeViewer() { document.getElementById("viewer").classList.remove("open"); document.getElementById("viewer-backdrop").classList.remove("open"); }
     function downloadDocument() { if (!activeDocument || !confirm(`Download ${activeDocument.name}?`)) return; const link = document.createElement("a"); link.href = activeDocument.download_url; link.download = activeDocument.name; link.click(); }
+    function openDocumentTab() { if (!activeDocument) return; window.open(activeDocument.url, "_blank"); }
+    async function deleteDocumentByName(name) {
+      if (!confirm(`Are you sure you want to delete '${name}' from docs_multi? This will re-index your knowledge base.`)) return;
+      setStatus("Deleting & re-indexing...");
+      try {
+        const res = await fetch(`/api/documents/${encodeURIComponent(name)}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Delete failed");
+        if (activeDocument && activeDocument.name === name) closeViewer();
+        await loadDocuments();
+      } catch (err) {
+        alert("Delete error: " + err.message);
+      } finally {
+        setStatus("Agents ready");
+      }
+    }
 
     function renderChatList() { const list = document.getElementById("chat-list"); const chats = JSON.parse(localStorage.getItem("atlasChats") || "[]"); list.innerHTML = chats.length ? "" : '<div class="empty">No previous conversations yet.</div>'; chats.slice().reverse().forEach(chat => { const item = document.createElement("button"); item.className = `chat-item ${chat.id === SESSION_ID ? "active" : ""}`; item.innerHTML = `<span class="chat-icon">◌</span><span><strong>${chat.title}</strong><small>${chat.date}</small></span>`; item.onclick = () => { SESSION_ID = chat.id; messages.innerHTML = ""; addMessage("bot", "New conversation loaded. Ask your next question."); renderChatList(); }; list.appendChild(item); }); }
     function rememberChat(title) { const chats = JSON.parse(localStorage.getItem("atlasChats") || "[]"); const existing = chats.find(chat => chat.id === SESSION_ID); if (existing) { existing.title = existing.title === "New conversation" ? title : existing.title; } else chats.push({ id: SESSION_ID, title, date: new Date().toLocaleDateString(undefined, { month:"short", day:"numeric" }) }); localStorage.setItem("atlasChats", JSON.stringify(chats)); renderChatList(); }
@@ -409,7 +526,7 @@
     }
 
     async function clearHistory() { await fetch("/clear", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({session_id:SESSION_ID,message:""}) }).catch(() => {}); localStorage.removeItem("atlasChats"); newChat(); }
-    document.getElementById("btn").onclick = send; document.getElementById("new-chat").onclick = newChat; document.getElementById("viewer-close").onclick = closeViewer; document.getElementById("viewer-backdrop").onclick = closeViewer; document.getElementById("viewer-download").onclick = downloadDocument; input.onkeydown = event => { if (event.key === "Enter") send(); }; document.querySelectorAll(".suggestion").forEach(button => button.onclick = () => { input.value = button.textContent; input.focus(); }); document.getElementById("open-chats").onclick = () => document.getElementById("sidebar").classList.toggle("open"); document.getElementById("open-docs").onclick = () => document.getElementById("right-panel").classList.toggle("open");
+    document.getElementById("btn").onclick = send; document.getElementById("new-chat").onclick = newChat; document.getElementById("viewer-close").onclick = closeViewer; document.getElementById("viewer-backdrop").onclick = closeViewer; document.getElementById("viewer-download").onclick = downloadDocument; const vTab = document.getElementById("viewer-open-tab"); if (vTab) vTab.onclick = openDocumentTab; const vDel = document.getElementById("viewer-delete"); if (vDel) vDel.onclick = () => { if (activeDocument) deleteDocumentByName(activeDocument.name); }; input.onkeydown = event => { if (event.key === "Enter") send(); }; document.querySelectorAll(".suggestion").forEach(button => button.onclick = () => { input.value = button.textContent; input.focus(); }); document.getElementById("open-chats").onclick = () => document.getElementById("sidebar").classList.toggle("open"); document.getElementById("open-docs").onclick = () => document.getElementById("right-panel").classList.toggle("open");
     document.getElementById("clear-chat").onclick = async () => { if (confirm("Clear all conversations and reset chat session?")) { await clearHistory(); } };
     renderChatList(); loadDocuments();
   </script>
