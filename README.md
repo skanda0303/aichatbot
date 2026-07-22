@@ -11,6 +11,8 @@ pinned: false
 
 # Atlas - Multi-Agent Retrieval-Augmented Generation System
 
+Live Deployment: https://huggingface.co/spaces/skandas/Atlas
+
 Atlas is a production-ready, multi-agent AI chatbot built on a Retrieval-Augmented Generation (RAG) pipeline. It is designed to answer questions grounded in indexed documents, with automatic fallback to live web search when local context is insufficient. Every response is verified by a second-pass Critic agent before being delivered to the user.
 
 ---
