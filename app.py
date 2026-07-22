@@ -12,6 +12,16 @@ from langchain_core.messages import HumanMessage, AIMessage
 load_dotenv()
 os.environ["USE_HUGGINGFACE_EMBEDDINGS"] = "1"
 
+# Satisfy Hugging Face ZeroGPU startup validator
+try:
+    import spaces
+    @spaces.GPU
+    def _zerogpu_startup_check():
+        pass
+    _zerogpu_startup_check()
+except Exception:
+    pass
+
 # Import multi_agent components
 from multi_agent.retrieval.ingestion import load_and_index_documents
 from multi_agent.retrieval.retriever import build_retriever
