@@ -470,9 +470,14 @@
 
         if (!rendered) {
           wrap.remove();
+          const fullUrl = new URL(doc.url, window.location.href).href;
           const frame = document.createElement("iframe");
           frame.title = doc.name;
-          frame.src = doc.url;
+          if (window.location.protocol.startsWith("http") && !window.location.hostname.includes("localhost") && !window.location.hostname.includes("127.0.0.1")) {
+            frame.src = `https://docs.google.com/gview?url=${encodeURIComponent(fullUrl)}&embedded=true`;
+          } else {
+            frame.src = doc.url;
+          }
           document.getElementById("viewer").appendChild(frame);
         }
       } else {
