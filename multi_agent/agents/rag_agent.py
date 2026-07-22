@@ -21,10 +21,13 @@ from multi_agent.config import RETRIEVER_K
 
 
 # Called in: multi_agent/agents/supervisor_agent.py (run_streaming, run)
+import os
+
 def run(
     query: str,
     retriever: RerankedRetriever,
     chunks: list[Document],
+    selected_doc: str | None = None,
 ) -> RAGResult:
     """
     Execute the full retrieval pipeline and return a RAGResult.
@@ -66,12 +69,26 @@ def run(
 
         # Additional Jaccard deduplication pass
         docs = filter_redundant_docs(docs)
-        docs = docs[:RETRIEVER_K]
+        
+        # If user explicitly selected a document, prioritize matching docs
+        if selected_doc:
+            matched_docs = [d for d in docs if selected_doc.lower() in os.path.basename(str(d.metadata.get("source", ""))).lower()]
+            other_docs = [d for d in docs if d not in matched_docs]
+            docs = (matched_docs + other_docs)[:RETRIEVER_K]
+        else:
+            docs = docs[:RETRIEVER_K]
+            
         scores = scores[:len(docs)]
 
-        chunks_text = [doc.page_content for doc in docs]
-        metadata    = [dict(doc.metadata) for doc in docs]
-        avg_score   = float(sum(scores) / len(scores)) if scores else 0.0
+        chunks_text = []
+        for doc in docs:
+            src = doc.metadata.get("source", "Knowledge Base")
+            src_name = os.path.basename(str(src))
+            page_info = f" (Page {doc.metadata.get('page', 0) + 1})" if "page" in doc.metadata else ""
+            chunks_text.append(f"[Source: {src_name}{page_info}]\n{doc.page_content}")
+
+        metadata  = [dict(doc.metadata) for doc in docs]
+        avg_score = float(sum(scores) / len(scores)) if scores else 0.0
 
         print(
             f"[RAG AGENT] Returning {len(chunks_text)} chunks | "

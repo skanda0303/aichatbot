@@ -49,6 +49,7 @@ fastapi_app.add_middleware(
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    selected_doc: str | None = None
     voice_enabled: bool = False
 
 @fastapi_app.get("/")
@@ -64,34 +65,51 @@ async def get_js():
     return FileResponse("audioPlayer.js")
 
 @fastapi_app.get("/api/documents")
-async def get_documents():
+def list_documents():
+    root = Path(DOCS_DIR)
+    root.mkdir(parents=True, exist_ok=True)
+    allowed = {".pdf", ".csv", ".txt", ".md", ".json"}
     docs = []
-    if os.path.exists(DOCS_DIR):
-        for fname in sorted(os.listdir(DOCS_DIR)):
-            fpath = os.path.join(DOCS_DIR, fname)
-            if os.path.isfile(fpath):
-                ext = os.path.splitext(fname)[1].upper().lstrip(".")
-                docs.append({
-                    "name": fname,
-                    "type": ext or "FILE",
-                    "size": os.path.getsize(fpath),
-                    "url": f"/docs_multi/{fname}",
-                    "download_url": f"/docs_multi/{fname}?download=1"
-                })
-    return JSONResponse({"documents": docs, "indexed_chunks": len(chunks)})
+    for path in sorted(root.iterdir(), key=lambda item: item.name.lower()):
+        if path.is_file() and path.suffix.lower() in allowed:
+            stat = path.stat()
+            ext = path.suffix.lower().strip(".")
+            docs.append({
+                "name": path.name,
+                "size": stat.st_size,
+                "type": ext.upper(),
+                "url": f"/documents/{path.name}",
+                "download_url": f"/documents/{path.name}?download=1"
+            })
+    return {"documents": docs, "indexed_chunks": len(chunks)}
 
-@fastapi_app.get("/docs_multi/{name:path}")
-async def serve_doc_file(name: str, download: bool = False):
-    root = Path(DOCS_DIR).resolve()
-    fpath = (root / name).resolve()
-    if root not in fpath.parents and root != fpath.parent:
-        raise HTTPException(status_code=404, detail="File not found")
-    if not fpath.is_file():
-        raise HTTPException(status_code=404, detail="File not found")
+@fastapi_app.delete("/api/documents/{name:path}")
+def delete_document(name: str):
+    root = Path(DOCS_DIR)
+    target = root / name
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Document not found")
+    try:
+        target.unlink()
+        global chunks, retriever
+        print(f"[HF SPACE] Deleted '{name}'. Re-indexing remaining documents...")
+        chunks = load_and_index_documents()
+        retriever = build_retriever(chunks)
+        return {"status": "ok", "message": f"Deleted '{name}' and re-indexed knowledge base."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete document: {e}")
+
+@fastapi_app.get("/documents/{name:path}")
+def serve_document(name: str, download: bool = False):
+    root = Path(DOCS_DIR)
+    target = root / name
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Document not found")
     headers = {
-        "Content-Disposition": f"{'attachment' if download else 'inline'}; filename*=UTF-8''{fpath.name}",
+        "Content-Disposition": f"{'attachment' if download else 'inline'}; filename*=UTF-8''{target.name}",
+        "X-Content-Type-Options": "nosniff",
     }
-    return FileResponse(fpath, headers=headers)
+    return FileResponse(target, headers=headers)
 
 @fastapi_app.post("/api/upload")
 async def upload_document(file: UploadFile = File(...)):
@@ -132,6 +150,7 @@ async def chat_endpoint(req: ChatRequest, request: Request):
                 chunks=chunks,
                 user_gemini_key=user_gemini_key,
                 user_tavily_key=user_tavily_key,
+                selected_doc=req.selected_doc,
             ):
                 event = {"type": "text", "content": token}
                 yield json.dumps(event) + "\n"

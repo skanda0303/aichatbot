@@ -95,6 +95,7 @@ def _build_app(chunks, retriever, lifespan) -> FastAPI:
     class ChatRequest(BaseModel):
         session_id: str
         message: str
+        selected_doc: str | None = None
 
     # Route: GET /api/documents (FastAPI handler)
     @app.get("/api/documents")
@@ -172,6 +173,7 @@ def _build_app(chunks, retriever, lifespan) -> FastAPI:
                     chunks=_chunks,
                     user_gemini_key=x_gemini_key,
                     user_tavily_key=x_tavily_key,
+                    selected_doc=req.selected_doc,
                 ):
                     accumulated_answer.append(token)
                     yield _sse({"type": "text", "content": token})

@@ -51,6 +51,7 @@ async def run_streaming(
     chunks: list[Document],
     user_gemini_key: str | None = None,
     user_tavily_key: str | None = None,
+    selected_doc: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Full pipeline as an async generator yielding answer tokens.
@@ -65,7 +66,7 @@ async def run_streaming(
 
     # ── Step 1: RAG Retrieval ─────────────────────────────────────────────────
     print(f"[SUPERVISOR] -> Invoking RAG Agent with original query: '{query}'...")
-    rag_result: RAGResult = rag_agent.run(query, retriever, chunks)
+    rag_result: RAGResult = rag_agent.run(query, retriever, chunks, selected_doc=selected_doc)
 
     # ── Step 2: Context Evaluation ────────────────────────────────────────────
     print("[SUPERVISOR] -> Invoking Evaluation Agent...")
