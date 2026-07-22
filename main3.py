@@ -8,14 +8,17 @@ from collections import defaultdict
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.agents import create_agent
+from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.chat_message_histories import SQLChatMessageHistory
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers import EnsembleRetriever
 from langchain_core.documents import Document
@@ -24,10 +27,8 @@ from langchain_core.tools import tool
 # ── Configuration ──────────────────────────────────────────────────────────────
 DOCS_DIR             = "docs"
 HASH_FILE            = "docs_hash.json"
-OLLAMA_MODEL         = "qwen2.5:3b"
-OLLAMA_URL           = "http://localhost:11434"
-MAX_AGENT_ITERATIONS = 5    # max tool-call rounds before forcing a final answer
-MAX_WEB_RESULTS      = 5   # DuckDuckGo results per search
+MAX_AGENT_ITERATIONS = 6    # max tool-call rounds before forcing a final answer
+MAX_WEB_RESULTS      = 5  #  results per search
 MAX_HISTORY_MESSAGES = 6    # recent chat messages injected into agent context
 RETRIEVER_K          = 12   # chunks per retriever in hybrid search
 
@@ -95,9 +96,10 @@ if os.listdir(DOCS_DIR):
             chunk_size=1000, chunk_overlap=150
         ).split_documents(merged_docs)
 
-        if existing_ids:
-            vectorstore.delete(ids=existing_ids)
-        vectorstore.add_documents(chunks)
+        # Batch document addition to prevent Ollama runner crashes on large batch requests
+        batch_size = 32
+        for i in range(0, len(chunks), batch_size):
+            vectorstore.add_documents(chunks[i : i + batch_size])
         save_fingerprint(current_fp)
         print(f"[OK] Ingested {len(chunks)} chunks from {len(merged_docs)} file(s).")
 else:
@@ -141,15 +143,10 @@ def filter_redundant_docs(docs: list, threshold: float = 0.85) -> list:
     return unique
 
 # ── LLM ───────────────────────────────────────────────────────────────────────
-# num_ctx=6144 is enough for conversation + tool results without excessive overhead
-llm = ChatOllama(
-    model=OLLAMA_MODEL,
-    base_url=OLLAMA_URL,
-    temperature=0.2,
-    think=True,
-    num_ctx=6144,
-    num_predict=512,
-    format="json",
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3.1-flash-lite",
+    google_api_key=os.getenv("GOOGLE_API_KEY", ""),
+    temperature=0.2
 )
 
 # ── Tool definitions ───────────────────────────────────────────────────────────
@@ -185,6 +182,42 @@ def rag_search(query: str) -> str:
     print(f"  [RAG TOOL] Returned {len(filtered[:8])} chunks.")
     return formatted
 
+def _fetch_url(url: str) -> str:
+    """Helper function to fetch and clean webpage content."""
+    try:
+        import urllib.request
+        from bs4 import BeautifulSoup
+        import re
+
+        req = urllib.request.Request(
+            url, 
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        )
+        with urllib.request.urlopen(req, timeout=6) as response:
+            html = response.read()
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Remove unwanted elements
+        for element in soup(["script", "style", "nav", "footer", "header", "aside"]):
+            element.decompose()
+            
+        # Get text and clean it up
+        text = soup.get_text(separator=' ')
+        lines = (line.strip() for line in text.splitlines())
+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+        text = '\n'.join(chunk for chunk in chunks if chunk)
+        
+        # Compress multiple newlines/spaces
+        text = re.sub(r'\n+', '\n', text)
+        text = re.sub(r' +', ' ', text)
+        
+        # Cap to 12000 characters to keep it within context bounds
+        if len(text) > 12000:
+            text = text[:12000] + "... [truncated]"
+        return text
+    except Exception as e:
+        return f"Failed to fetch webpage: {e}"
 
 @tool
 def web_search(query: str) -> str:
@@ -192,18 +225,81 @@ def web_search(query: str) -> str:
     not found in the documents. Use as a fallback when rag_search returns NO_RELEVANT_DOCS,
     or directly for queries about current events / live data."""
     try:
-        from ddgs import DDGS
-        snippets = []
-        with DDGS() as ddgs:
-            for r in ddgs.text(query, max_results=MAX_WEB_RESULTS):
-                snippets.append(f"[{r.get('title', '')}]\n{r.get('body', '')}\nSource: {r.get('href', '')}")
-        if not snippets:
+        import urllib.request
+        import json
+
+        print(f"  [WEB TOOL] Querying Tavily API for: '{query}'")
+        
+        tavily_url = "https://api.tavily.com/search"
+        payload = {
+            "api_key": "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",
+            "query": query,
+            "search_depth": "basic",
+            "include_answer": False,
+            "max_results": 5
+        }
+        headers = {
+            "Content-Type": "application/json"
+        }
+        req = urllib.request.Request(
+            tavily_url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST"
+        )
+        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+
+        search_results = res_data.get("results", [])
+        
+        # Filter out video-based and social media platforms (youtube, tiktok, etc.)
+        VIDEO_BLACKLIST = ["youtube.com", "youtu.be", "vimeo.com", "dailymotion.com", "tiktok.com", "instagram.com"]
+        filtered_results = [
+            res for res in search_results
+            if not any(blacklisted in res.get("url", "").lower() for blacklisted in VIDEO_BLACKLIST)
+        ]
+        
+        if not filtered_results:
             return "No web results found for this query."
-        print(f"  [WEB TOOL] Returned {len(snippets)} results.")
-        return "\n\n---\n\n".join(snippets)
+
+        print(f"  [WEB TOOL] Tavily returned {len(filtered_results)} valid non-video results. Auto-fetching top 4 pages...")
+
+        formatted_sources = []
+        for i, res in enumerate(filtered_results[:4]): # Format and fetch top 4 sources
+            url = res.get("url", "")
+            title = res.get("title", "")
+            snippet = res.get("content", "")
+            score = res.get("score", 0.0)
+            
+            # Auto-fetch full page for top 4 sources
+            if i < 4 and url:
+                print(f"    [WEB TOOL] Auto-fetching page {i+1}: {url}")
+                page_content = _fetch_url(url)
+                if page_content and not page_content.startswith("Failed to fetch webpage"):
+                    snippet = page_content
+                    print(f"    [WEB TOOL] Successfully fetched {len(page_content)} characters.")
+                else:
+                    print(f"    [WEB TOOL] Fetch failed: {page_content[:60]}... Using snippet fallback.")
+
+            formatted_sources.append(
+                f"=== SOURCE {i+1} ===\n"
+                f"Title: {title}\n"
+                f"URL: {url}\n"
+                f"Source: Tavily Search | Relevance Score: {score}\n"
+                f"Content:\n{snippet}"
+            )
+
+        return "\n\n---\n\n".join(formatted_sources)
     except Exception as e:
         return f"Web search failed: {e}"
 
+@tool
+def fetch_webpage_content(url: str) -> str:
+    """Fetch and read the full text content of a specific webpage URL to get detailed, in-depth information
+    about a news article, release, or technical documentation. Always use this when the search results/snippets
+    do not contain enough detailed information. The tool_input must be a valid URL string starting with http or https."""
+    return _fetch_url(url)
 
 @tool
 def get_datetime() -> str:
@@ -212,116 +308,100 @@ def get_datetime() -> str:
     now = datetime.now()
     return f"Current date and time: {now.strftime('%A, %B %d, %Y at %H:%M:%S')}"
 
-
 # ── Agent setup ────────────────────────────────────────────────────────────────
-TOOLS     = [rag_search, web_search, get_datetime]
-TOOL_MAP  = {t.name: t for t in TOOLS}
+agent_tools = [web_search, fetch_webpage_content, get_datetime]
 
-AGENT_SYSTEM_PROMPT = (
-    "You are a highly precise, fact-grounded agentic assistant. You make routing decisions and answer "
-    "questions using the provided tools. You MUST respond ONLY with a valid JSON object matching the schema below. "
-    "Do not include any thinking tags like <think> or prose output outside the JSON. "
-    "Your response must be a single, valid JSON object at each step.\n\n"
-    "SCHEMA:\n"
-    "{\n"
-    "  \"thought\": \"Detailed reasoning about what tool to call next and what search query is needed.\",\n"
-    "  \"tool\": \"rag_search\" | \"web_search\" | \"get_datetime\" | \"none\",\n"
-    "  \"tool_input\": \"Search query or parameter, or empty string.\",\n"
-    "  \"final_answer\": \"The final output to the user (only fill this when tool is 'none').\"\n"
-    "}\n\n"
-    "SEARCH QUERY FORMULATION RULES:\n"
-    "- Do NOT pass the raw user query directly to web_search if it is conversational or complex. "
-    "Instead, rewrite it into highly targeted, keyword-optimized search queries (e.g. rewrite 'who won the latest NBA Finals and who was named Finals MVP?' into '2026 NBA Finals winner MVP').\n"
-    "- For financial data or stock prices, always search for 'stock price today June 2026'.\n"
-    "- Include the year 2026 in the search query for any time-sensitive queries to get the latest results.\n\n"
-    "CRITICAL GROUNDING & SYNTHESIS RULES (follow strictly):\n"
-    "1. SYSTEM DATE: Today is Friday, June 26, 2026. Keep this temporal context in mind.\n"
-    "2. NO OUTDATED DATA: Check the dates in search snippets. Do NOT present information from 2024 or 2025 as 'today's' or 'latest' data if 2026 data is available or expected. For example, if a stock price article is from 2025, do not call it 'today's price'. If no 2026 data is found, state the date of the data clearly.\n"
-    "3. COHERENT SYNTHESIS & VERIFICATION: Integrate search results logically. Do not just list or dump search results sequentially. Summarize them into a cohesive response. Verify names and details (e.g., do not mix up regular-season MVP with Finals MVP).\n"
-    "4. ANSWER DIRECTLY: Never tell the user to 'check a website' (e.g. ESPNcricinfo) to get the answer. You MUST extract the actual scores, numbers, or facts from the tool output and present them directly.\n"
-    "5. TECHNICAL PRECISION: Avoid hallucinating technical facts or mixing brand architectures (e.g. do not associate NVIDIA with AMD's RDNA or vice versa; RTX is NVIDIA, RDNA/Radeon is AMD).\n"
-    "6. DECISION RULES:\n"
-    "  - For any question about Rabindranath Tagore, uploaded document topics, files, or info stored in the documents, call 'rag_search' first.\n"
-    "  - If 'rag_search' returns 'NO_RELEVANT_DOCS' or lacks the answer, immediately call 'web_search' as a fallback.\n"
-    "  - For general knowledge, external queries, or facts, call 'web_search'.\n"
-    "  - For today's date, current time, or current day of the week, call 'get_datetime'. DO NOT use 'get_datetime' for historical birthdays.\n"
+agent_executor = create_agent(
+    model=llm,
+    tools=agent_tools,
+    system_prompt=(
+        f"You are a precise, fact-grounded assistant. Current date is {datetime.now().strftime('%A, %B %d, %Y')}.\n\n"
+        "SYNTHESIS RULES:\n"
+        "1. Answer directly from facts in tool results or pre-fetched RAG context — never tell the user to visit a site.\n"
+        "2. Be comprehensive and detailed. Use bullet points or bold text where helpful.\n"
+        "3. Trust tool outputs over your training memory.\n"
+        "4. Do not repeat identical search queries. However, you are highly encouraged to do multi-step searching or call 'fetch_webpage_content' on multiple URLs to gather complete and detailed timelines when requested.\n"
+        "5. If you need detailed/specific info from a webpage URL returned by web_search, call 'fetch_webpage_content' with that exact URL in tool_input.\n"
+        "6. CHRONOLOGICAL TIMELINES: When asked for a timeline or chronological order of releases/events, carefully verify release months and dates for each model and list them in strict order from oldest to newest with detailed descriptions.\n"
+        "7. WEB FALLBACK: If the 'Pre-fetched RAG context' does not contain the answer, is irrelevant to the query, or is blank, you MUST call the 'web_search' tool to find the information on the web. Never simply say the text does not contain the information."
+    )
 )
 
-# ── Tool dispatcher ────────────────────────────────────────────────────────────
-async def dispatch_tool(name: str, args: dict) -> str:
-    """Execute a tool call asynchronously (runs sync tools in a thread pool)."""
-    if name not in TOOL_MAP:
-        return f"Unknown tool requested: '{name}'"
-    try:
-        result = await asyncio.to_thread(TOOL_MAP[name].invoke, args)
-        return str(result)
-    except Exception as e:
-        return f"Tool '{name}' failed: {e}"
+def sanitize_tool_output(text: str) -> str:
+    # Clean up excessive whitespace
+    text = " ".join(text.split())
+    # Cap at 25000 chars — keeps context small enough for the model to respond reliably without losing critical search details
+    if len(text) > 25000:
+        text = text[:25000] + "... [truncated]"
+    return text
 
 # ── Agent loop ─────────────────────────────────────────────────────────────────
 async def run_agent(query: str, history_messages: list) -> str:
-    """
-    JSON-based ReAct-style agent loop:
-      1. LLM decides which tool to call by returning structured JSON
-      2. Tool executes and returns result
-      3. LLM reads result and either calls another tool or produces final_answer
-    Max MAX_AGENT_ITERATIONS rounds before forcing a final answer.
-    """
-    messages = [SystemMessage(content=AGENT_SYSTEM_PROMPT)]
-    messages += list(history_messages[-MAX_HISTORY_MESSAGES:])
-    messages.append(HumanMessage(content=query))
+    print(f"[AGENT] Starting query routing. Query: '{query}'")
 
-    for iteration in range(MAX_AGENT_ITERATIONS):
-        t = time.perf_counter()
-        resp = await llm.ainvoke(messages)
-        print(f"[AGENT] LLM call #{iteration + 1}: {time.perf_counter() - t:.3f}s")
-
+    # ── Step 1: Single pre-fetch from RAG ───────────────────
+    rag_context = ""
+    has_rag_docs = False
+    if chunks:
         try:
-            decision = json.loads(resp.content)
+            t_ret = time.perf_counter()
+            retrieved_docs = retriever.invoke(query)
+            print(f"[AGENT] Retrieval done in {time.perf_counter() - t_ret:.3f}s — {len(retrieved_docs)} raw docs")
+            if retrieved_docs:
+                seen, unique = set(), []
+                for doc in retrieved_docs:
+                    if doc.page_content not in seen:
+                        seen.add(doc.page_content)
+                        unique.append(doc)
+                filtered = filter_redundant_docs(unique, threshold=0.85)
+                if filtered:
+                    has_rag_docs = True
+                    formatted_chunks = [doc.page_content.replace("●", "\n- ") for doc in filtered[:3]]
+                    rag_context = "\n\n---\n\n".join(formatted_chunks)
+                    print(f"[AGENT] Injecting {len(filtered[:3])} RAG chunks directly.")
         except Exception as e:
-            print(f"[AGENT] JSON parse error: {e}. Raw content: {resp.content}")
-            return "I encountered an error formatting the response. Please try again."
+            print(f"[AGENT] Retrieval error: {e}. Continuing without RAG context.")
 
-        thought = decision.get("thought", "")
-        tool_name = decision.get("tool", "none")
-        tool_input = decision.get("tool_input", "")
-        final_answer = decision.get("final_answer", "")
+    # ── Step 2: Incorporate pre-fetched RAG context into input if present ───
+    user_input = query
+    if has_rag_docs:
+        sanitized_rag = sanitize_tool_output(rag_context)
+        user_input = (
+            f"Pre-fetched RAG context:\n{sanitized_rag}\n\n"
+            f"Now answer the query: {query}"
+        )
 
-        print(f"[AGENT] Thought: {thought}")
-        print(f"[AGENT] Action: {tool_name} (input: '{tool_input}')")
-
-        if tool_name == "none" or not tool_name:
-            if not final_answer:
-                final_answer = "I could not find relevant information about this topic."
-            return final_answer
-
-        # Execute the chosen tool
-        t_tool = time.perf_counter()
-        args = {}
-        if tool_name in ["rag_search", "web_search"]:
-            args = {"query": tool_input}
-
-        result = await dispatch_tool(tool_name, args)
-        elapsed = time.perf_counter() - t_tool
-        print(f"[AGENT] Tool '{tool_name}' -> {len(result)} chars in {elapsed:.3f}s")
-
-        # Append intermediate thought & output
-        messages.append(AIMessage(content=json.dumps(decision)))
-        messages.append(HumanMessage(content=f"Tool '{tool_name}' returned: {result}"))
-
-    # Force a final answer if max iterations reached
-    print("[AGENT] Max iterations reached — forcing final answer.")
-    messages.append(SystemMessage(content="You have reached the maximum number of iterations. Please output your final answer now. Set tool to 'none' and put the response in 'final_answer'."))
-    resp = await llm.ainvoke(messages)
+    # ── Step 3: Run the LangChain AgentExecutor / CompiledStateGraph ───────────
     try:
-        decision = json.loads(resp.content)
-        return decision.get("final_answer", "I could not find relevant information about this topic.")
-    except Exception:
-        return "I could not find relevant information about this topic."
-
+        inputs = {
+            "messages": list(history_messages[-MAX_HISTORY_MESSAGES:]) + [HumanMessage(content=user_input)]
+        }
+        response = await agent_executor.ainvoke(inputs)
+        final_message = response["messages"][-1]
+        content = final_message.content
+        if isinstance(content, list):
+            text_parts = []
+            for part in content:
+                if isinstance(part, str):
+                    text_parts.append(part)
+                elif isinstance(part, dict) and "text" in part:
+                    text_parts.append(part["text"])
+            return "".join(text_parts)
+        return str(content)
+    except Exception as e:
+        print(f"[AGENT ERROR] agent_executor execution failed: {e}")
+        return f"An error occurred while executing the agent: {e}"
 
 # ── FastAPI app ────────────────────────────────────────────────────────────────
 app = FastAPI(title="Agentic RAG Chatbot — Port 8002")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ChatRequest(BaseModel):
     session_id: str
@@ -336,18 +416,30 @@ async def chat(req: ChatRequest):
         )
 
         t_start = time.perf_counter()
-        final_answer = await run_agent(req.message, history.messages)
+        try:
+            final_answer = await run_agent(req.message, history.messages)
+        except Exception as e:
+            print(f"[ERROR] run_agent raised an exception: {e}")
+            final_answer = "Sorry, I encountered an internal error. Please try again."
         print(f"[TIMER] Total agent time: {time.perf_counter() - t_start:.3f}s")
+
+        # Guard: ensure we always have something to stream
+        if not final_answer or not final_answer.strip():
+            print("[WARNING] final_answer is empty — sending fallback message.")
+            final_answer = "I'm sorry, I wasn't able to generate a response. Please try rephrasing your question."
+
+        print(f"[STREAM] Streaming {len(final_answer)} chars to frontend.")
 
         # Stream word-by-word so the UI renders progressively
         words = final_answer.split(" ")
         for i, word in enumerate(words):
             yield word + (" " if i < len(words) - 1 else "")
+            await asyncio.sleep(0)  # yield control back to event loop
 
         history.add_message(HumanMessage(content=req.message))
         history.add_message(AIMessage(content=final_answer))
 
-    return StreamingResponse(response_generator(), media_type="text/event-stream")
+    return StreamingResponse(response_generator(), media_type="text/plain; charset=utf-8")
 
 
 @app.post("/clear")
@@ -367,4 +459,4 @@ def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main3:app", host="0.0.0.0", port=8002, reload=True)
+    uvicorn.run("main3:app", host="0.0.0.0", port=8003, reload=True)

@@ -1,0 +1,829 @@
+[
+  {
+    "id": "rag_377",
+    "query": "Emodin forms hydrogen bonds with residues involved in PGAM1 substrate binding.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_19",
+    "query": "what age do you need to be to buy a bb gun",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "18"
+    ]
+  },
+  {
+    "id": "web_nq_22",
+    "query": "how many seasons of vampire diaries r there",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "eight",
+      "8"
+    ]
+  },
+  {
+    "id": "web_nq_31",
+    "query": "who did bette midler portray in the rose",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Mary Rose Foster"
+    ]
+  },
+  {
+    "id": "rag_212",
+    "query": "CR is associated with higher methylation age.",
+    "expected_route": "rag",
+    "target_doc_id": "22038539",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_0",
+    "query": "when was the last time anyone was on the moon",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "14 December 1972 UTC",
+      "December 1972"
+    ]
+  },
+  {
+    "id": "rag_1394",
+    "query": "miRNAs regulate a unique suite of mRNAs to maintain homeostasis in cells.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_47",
+    "query": "when was the last time oklahoma won a national championship in football",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "2003",
+      "2000"
+    ]
+  },
+  {
+    "id": "rag_17",
+    "query": "53% of perinatal mortality is due to low birth weight.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_49",
+    "query": "where did the allies go after north africa",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Italy",
+      "the Italian Campaign"
+    ]
+  },
+  {
+    "id": "rag_470",
+    "query": "Glioblastoma multiforme (GBM) is characterized by extensive invasion, rapid growth, necrosis, and angiogenesis.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_235",
+    "query": "Cell autonomous sex determination in somatic cells occurs in Galliformes.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_18",
+    "query": "who had a baby at 100 in the bible",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Sarah",
+      "Abraham"
+    ]
+  },
+  {
+    "id": "rag_300",
+    "query": "Cytosolic proteins bind to iron-responsive elements on mRNAs coding for DMT1. Cytosolic proteins bind to iron-responsive elements on mRNAs coding for proteins involved in iron uptake.",
+    "expected_route": "rag",
+    "target_doc_id": "3553087",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_594",
+    "query": "Incidence of heart failure increased by 10% in women since 1979.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_38",
+    "query": "what are the three fifty shades of grey books",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Fifty Shades of Grey",
+      "Fifty Shades Darker",
+      "Fifty Shades Freed"
+    ]
+  },
+  {
+    "id": "web_nq_16",
+    "query": "what is the oath that new citizens take",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "United States Oath of Allegiance"
+    ]
+  },
+  {
+    "id": "rag_77",
+    "query": "Active Ly49Q prevents neutrophil polarization.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_1019",
+    "query": "Rapid phosphotransfer rates govern fidelity in two component systems",
+    "expected_route": "rag",
+    "target_doc_id": "11603066",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_1404",
+    "query": "siRNA knockdown of A20 slows tumor progression in an in vivo murine xenograft model.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_1211",
+    "query": "The density of cytokine receptor bearing cells has no effect on the distance over which cytokines act.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_25",
+    "query": "when was the first australian prime minister elected",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Sir Edmund Barton",
+      "1901"
+    ]
+  },
+  {
+    "id": "web_nq_32",
+    "query": "who is the lead singer of depeche mode",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "David Gahan"
+    ]
+  },
+  {
+    "id": "web_nq_13",
+    "query": "who was the actor that played ben stone on law and order",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Michael Moriarty"
+    ]
+  },
+  {
+    "id": "web_nq_37",
+    "query": "when did taylor swift's first album release",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "October 24, 2006",
+      "2005"
+    ]
+  },
+  {
+    "id": "rag_1270",
+    "query": "The risk of male prisoners harming themselves is ten times that of female prisoners.",
+    "expected_route": "rag",
+    "target_doc_id": "13900610",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_4",
+    "query": "who won last year's ncaa women's basketball",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "South Carolina"
+    ]
+  },
+  {
+    "id": "rag_413",
+    "query": "Female carriers of the Apolipoprotein E4 (APOE4) allele have decreased risk for dementia.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_40",
+    "query": "what are the ranks in the us navy",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "E-8s senior chief petty officer",
+      "E-9s master chief petty officer"
+    ]
+  },
+  {
+    "id": "web_nq_9",
+    "query": "what is the maximum data rate for the 802.11a standard select one",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "54 Mbit/s"
+    ]
+  },
+  {
+    "id": "web_nq_28",
+    "query": "who plays joker in batman the dark knight",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Ledger"
+    ]
+  },
+  {
+    "id": "web_nq_30",
+    "query": "when was the first hunger games book published",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "September 14, 2008",
+      "2008"
+    ]
+  },
+  {
+    "id": "web_nq_14",
+    "query": "who does the voice of nala in the lion king",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Niketa Calame",
+      "Sally Dworsky",
+      "Moira Kelly",
+      "Laura Williams"
+    ]
+  },
+  {
+    "id": "web_nq_36",
+    "query": "where does no game no life anime end",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "the Elkia Federation",
+      "the sixth volume"
+    ]
+  },
+  {
+    "id": "rag_855",
+    "query": "Noninvasive positive pressure ventilation is not predictive of acute respiratory failure after solid organ transplantation.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_33",
+    "query": "where did the butchers in the slaughterhouse cases live",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "New Orleans"
+    ]
+  },
+  {
+    "id": "web_nq_10",
+    "query": "which state is located in the centre of india",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Chhattisgarh",
+      "Madhya Pradesh"
+    ]
+  },
+  {
+    "id": "rag_597",
+    "query": "Incidence rates of cervical cancer have decreased.",
+    "expected_route": "rag",
+    "target_doc_id": "25742130",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_44",
+    "query": "when is the last time the vikings were in the nfc championship",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "1976",
+      "2017/18"
+    ]
+  },
+  {
+    "id": "rag_587",
+    "query": "In transgenic mice harboring green florescent protein under the control of the Sox2 promoter, less than ten percent of the cells with green florescent colocalize with cell proliferation markers.",
+    "expected_route": "rag",
+    "target_doc_id": "16999023",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_39",
+    "query": "who has the power (judicial) to make decisions in courts of law",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "judges"
+    ]
+  },
+  {
+    "id": "web_nq_29",
+    "query": "when was the south asian association for regional co-operation (saarc) formed",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "December 1985",
+      "8 December 1985"
+    ]
+  },
+  {
+    "id": "rag_1340",
+    "query": "Ultrasound guidance significantly reduces the number of needle insertion attempts necessary for a given procedure.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_108",
+    "query": "Amitriptyline is an effective treatment for chronic tension-type headaches.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_672",
+    "query": "L3MBTL2 binds to H2AK119Ub marked chromatin to form a PRC1 complex.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_5",
+    "query": "when did the isle of wight become an island",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "During the last Ice Age"
+    ]
+  },
+  {
+    "id": "rag_1397",
+    "query": "p16INK4A degradation is  linked to an abnormal wound response caused by the microinvasive step of advanced Oral Potentially Malignant Lesions (OPMLs).",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_1226",
+    "query": "The loss of the TET protein functions may have dire biological consequences, such as myeloid cancers.",
+    "expected_route": "rag",
+    "target_doc_id": "13777138",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_598",
+    "query": "Incidence rates of cervical cancer have increased due to nationwide screening programs based primarily on cytology to detect uterine cervical cancer.",
+    "expected_route": "rag",
+    "target_doc_id": "25742130",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_397",
+    "query": "Exercise reduces cancer mortality rates among Chinese citizens.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_144",
+    "query": "Autologous transplantation of mesenchymal stem cells has better graft function than induction therapy with anti-interleukin-2 receptor antibodies.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_1",
+    "query": "who wrote he ain't heavy he's my brother lyrics",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Bobby Scott",
+      "Bob Russell"
+    ]
+  },
+  {
+    "id": "rag_46",
+    "query": "A single nucleotide variant the gene DGKK is strongly associated with increased risk of hypospadias.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_45",
+    "query": "what are the colors of the netherlands flag",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "blue",
+      "white",
+      "red"
+    ]
+  },
+  {
+    "id": "web_nq_24",
+    "query": "who plays auggie in the movie the wonder",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Jacob Tremblay"
+    ]
+  },
+  {
+    "id": "web_nq_42",
+    "query": "who is the coach for the ottawa senators",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Guy Boucher"
+    ]
+  },
+  {
+    "id": "rag_883",
+    "query": "Omnivores produce more trimethylamine N-oxide from dietary I-carnitine than vegans.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_783",
+    "query": "Mice without IFN-γ or its receptor are resistant to EAM induced with α-MyHC/CFA.",
+    "expected_route": "rag",
+    "target_doc_id": "40632104",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_1254",
+    "query": "The proliferative capacity of neural progenitors differs across species.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_570",
+    "query": "In breast cancer, the loss of myoepithelial cells promotes the transition of ductal carcinoma in situ to invasive carcinoma.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_1307",
+    "query": "Tonic signaling from the scFv induces constitutive stimulation.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_646",
+    "query": "Intake of folic acid (FA) and vitamin B6 (VB6) reduces levels of homocysteine.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_46",
+    "query": "where is lord's prayer found in bible",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "in the Gospel of Luke"
+    ]
+  },
+  {
+    "id": "web_nq_2",
+    "query": "how many seasons of the bastard executioner are there",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "one",
+      "one season"
+    ]
+  },
+  {
+    "id": "rag_1049",
+    "query": "Ribosomopathies have a low degree of cell and tissue specific pathology.",
+    "expected_route": "rag",
+    "target_doc_id": "12486491",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_7",
+    "query": "who was the ruler of england in 1616",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "James I"
+    ]
+  },
+  {
+    "id": "rag_1312",
+    "query": "Transcription factor EB induces transcription of pro-inflammatory cytokines in macrophages infected with Staphylococcus aureus.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_860",
+    "query": "Normal granulomas form in the absence of TNF in Zebrafish.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_1362",
+    "query": "Venules have a larger lumen diameter than arterioles.",
+    "expected_route": "rag",
+    "target_doc_id": "8290953",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_12",
+    "query": "where did the last name wallace come from",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "a Scottish surname"
+    ]
+  },
+  {
+    "id": "rag_37",
+    "query": "A deficiency of vitamin B6 decreases blood levels of homocysteine.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_35",
+    "query": "who wrote cant get you out of my head lyrics",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Cathy Dennis and Rob Davis",
+      "Rob Davis",
+      "Cathy Dennis"
+    ]
+  },
+  {
+    "id": "web_nq_20",
+    "query": "ethiopia flight 961 crashes in to the sea",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "23 November 1996"
+    ]
+  },
+  {
+    "id": "rag_423",
+    "query": "Folate and vitamin B12 levels influence the association between homocysteine and preeclampsia.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_715",
+    "query": "Low expression of miR7a does represses target genes and exerts a biological function in ovaries.",
+    "expected_route": "rag",
+    "target_doc_id": "18421962",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_48",
+    "query": "location of the ten commandments in the bible",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Exodus",
+      "Deuteronomy"
+    ]
+  },
+  {
+    "id": "web_nq_8",
+    "query": "what is the hot coffee mod in san andreas",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "a normally inaccessible mini-game"
+    ]
+  },
+  {
+    "id": "rag_94",
+    "query": "Albendazole is used to treat lymphatic filariasis.",
+    "expected_route": "rag",
+    "target_doc_id": "1215116",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_186",
+    "query": "British female students are bullied more than British male students.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_364",
+    "query": "EGR2 is important to myelination of the peripheral nervous system.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_17",
+    "query": "who is under the mask of darth vader",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Anakin Skywalker"
+    ]
+  },
+  {
+    "id": "web_nq_23",
+    "query": "how many episodes are there in dragon ball z",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "291 episodes",
+      "291"
+    ]
+  },
+  {
+    "id": "rag_1163",
+    "query": "The DdrB protein from Deinococcus radiodurans is an alternative SSB.",
+    "expected_route": "rag",
+    "target_doc_id": "15305881",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_27",
+    "query": "who is the girl in green day 21 guns",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Lisa Stelly"
+    ]
+  },
+  {
+    "id": "web_nq_26",
+    "query": "who plays matthew on anne with an e",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "R. H. Thomson"
+    ]
+  },
+  {
+    "id": "rag_601",
+    "query": "Including pharmacists in rounding teams reduces the incidence of adverse drug events (ADEs).",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_21",
+    "query": "where was percy jackson and the olympians filmed",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Vancouver",
+      "Mission, British Columbia"
+    ]
+  },
+  {
+    "id": "rag_1265",
+    "query": "The risk of breast cancer among parous women decreases with placental weight of pregnancies.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_381",
+    "query": "Environmental factors can influence the development of breast cancer.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "rag_650",
+    "query": "Integrating classroom-based collaborative learning with Web-based collaborative learning offers the best class performance.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_6",
+    "query": "love yourself by justin bieber is about who",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Rihanna"
+    ]
+  },
+  {
+    "id": "rag_116",
+    "query": "Anthrax spores remain deadly until affected areas are decontaminated.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_11",
+    "query": "who sang i ran all the way home",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "The Impalas"
+    ]
+  },
+  {
+    "id": "web_nq_3",
+    "query": "when did the eagles win last super bowl",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "2017"
+    ]
+  },
+  {
+    "id": "web_nq_43",
+    "query": "last episode of what happens to my family",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "53"
+    ]
+  },
+  {
+    "id": "web_nq_34",
+    "query": "who developed the concept of total quality management",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "W. Edwards Deming"
+    ]
+  },
+  {
+    "id": "web_nq_15",
+    "query": "who plays gram on the young and the restless",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Max Shippee"
+    ]
+  },
+  {
+    "id": "rag_614",
+    "query": "Increased microtubule acetylation repairs interference of axonal transport caused by LRRK2 Roc-COR domain mutations.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  },
+  {
+    "id": "web_nq_41",
+    "query": "i was a great islamic scholar and mathematician who died in 1131 ce",
+    "expected_route": "web",
+    "target_doc_id": "",
+    "reference_answer": [
+      "Omar Khayyam"
+    ]
+  },
+  {
+    "id": "rag_1052",
+    "query": "Rising temperatures caused by global warming increases risk of dengue fever transmission.",
+    "expected_route": "rag",
+    "target_doc_id": "",
+    "reference_answer": ""
+  }
+]

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Galileo RAGBench Evaluation Report</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0b0c16; color: #e2e8f0; padding: 2rem; }
+    h1 { color: #a855f7; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #1e293b; padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #1e1b4b; color: #a78bfa; }
+    .score { font-weight: bold; text-align: center; }
+    .score-high { color: #22c55e; }
+    .score-mid { color: #eab308; }
+    .score-low { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>🧬 Galileo RAGBench (covidqa) Evaluation Report</h1>
+  <p>Generated: 2026-07-20 01:11:57</p>
+  
+  <h2>Summary Metrics</h2>
+  <ul>
+    <li>NDCG@10: 0.920</li>
+    <li>Recall@5: 100.0%</li>
+    <li>Context Precision: 0.833</li>
+    <li>Faithfulness: 1.000</li>
+    <li>Answer Relevancy: 0.500</li>
+  </ul>
+
+  <h2>Per Query Results</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Query</th>
+        <th>k</th>
+        <th>Generated Answer</th>
+        <th>NDCG@10</th>
+        <th>Recall@5</th>
+        <th>CtxPrec</th>
+        <th>Faith</th>
+        <th>AnsRel</th>
+        <th>Latency</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+        <tr>
+          <td rowspan="2">1</td>
+          <td rowspan="2"><b>Which viruses may not cause prolonged inflammation due to strong induction of antiviral clearance?</b><br><small style="color:#64748b">Gold: Type I Interferon Receptor Deficiency in Dendritic Cells Facilitates Systemic Murine Norovirus Persistence Despite Enhanced Adaptive Immunity, Type I Interferon Response Is Delayed in Human Astrovirus Infections</small></td>
+          <td>k=3</td>
+          <td>Based on the provided context, there is no information regarding which viruses may not cause prolonged inflammation due to strong induction of antiviral clearance. The text discusses viruses that persist due to ineffective innate responses (HCV, chikungunya, measles, polyomavirus) and the immune res</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.500</td>
+          <td>8.26s</td>
+        </tr>
+        <tr style="background:#090b16">
+          <td>k=5</td>
+          <td>I cannot answer this question based on the provided context. The text discusses viruses that persist due to ineffective innate responses (HCV, chikungunya, measles, polyomavirus) and the immune response to HuNV, HAstV, and rotavirus, but it does not identify viruses that avoid prolonged inflammation</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.500</td>
+          <td>1.71s</td>
+        </tr>
+    </tbody>
+  </table>
+</body>
+</html>

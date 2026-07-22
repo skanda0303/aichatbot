@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HotpotQA Pooled Eval Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0f1a; --surface: #12152b; --surface2: #1a1e38;
+      --border: #2e3258; --text: #e2e8f0; --text-muted: #94a3b8;
+      --text-dim: #64748b; --accent: #6366f1; --accent2: #8b5cf6;
+      --green: #4ade80; --red: #f87171; --yellow: #fbbf24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .header { background: linear-gradient(135deg, #1a1e38 0%, #0d0f1a 100%); border-bottom: 1px solid var(--border); padding: 2.5rem 3rem; }
+    .header h1 { font-size: 1.7rem; font-weight: 700; }
+    .header h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .meta { color: var(--text-dim); font-size: 0.85rem; margin-top: 0.5rem; }
+    .pills { display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
+    .pill { padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.78rem; font-weight: 500; }
+    .pill-blue   { background: #1e40af33; color: #60a5fa; border: 1px solid #1e40af55; }
+    .pill-purple { background: #7c3aed33; color: #a78bfa; border: 1px solid #7c3aed55; }
+    .pill-green  { background: #15803d33; color: #4ade80; border: 1px solid #15803d55; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 2.5rem 3rem; }
+    /* Cards */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1.4rem 1.6rem; position: relative; overflow: hidden;
+    }
+    .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+    .card-label { font-size: 0.78rem; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .card-value { font-size: 2.2rem; font-weight: 700; color: #fff; margin-top: 0.4rem; line-height: 1; }
+    .card-sub   { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.5rem; }
+    /* Metric bars */
+    .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.6rem; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .bar-group { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 2.5rem; }
+    .bar-row { display: flex; align-items: center; gap: 1rem; }
+    .bar-label { width: 180px; font-size: 0.82rem; color: var(--text-muted); flex-shrink: 0; text-align: right; }
+    .bar-track { flex: 1; height: 10px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+    .bar-fill.green { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .bar-fill.yellow { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .bar-val   { width: 52px; font-size: 0.82rem; color: var(--text); font-weight: 600; }
+    /* Table */
+    .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); margin-top: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    thead th { background: var(--surface); color: var(--text-muted); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; padding: 0.85rem 0.8rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; }
+    tbody tr { border-bottom: 1px solid rgba(46,50,88,0.5); transition: background 0.15s; }
+    tbody tr:hover { background: rgba(99,102,241,0.04); }
+    td { padding: 0.65rem 0.8rem; vertical-align: top; }
+    td.idx { color: var(--text-dim); font-size: 0.75rem; font-weight: 600; }
+    td.query-cell { min-width: 260px; max-width: 360px; }
+    td.answer-cell { min-width: 220px; max-width: 300px; color: var(--text-muted); font-size: 0.79rem; line-height: 1.5; }
+    td.score { text-align: center; font-weight: 600; }
+    td.latency { text-align: right; color: var(--text-dim); font-size: 0.77rem; white-space: nowrap; }
+    .score-high { color: #4ade80; }
+    .score-mid  { color: #fbbf24; }
+    .score-low  { color: #f87171; }
+    /* Search */
+    .search-bar { width: 100%; padding: 0.65rem 1rem; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-size: 0.88rem; outline: none; margin-bottom: 1rem; transition: border-color 0.2s; }
+    .search-bar:focus { border-color: var(--accent); }
+    footer { text-align: center; padding: 2rem; color: var(--text-dim); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 3rem; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 <span>HotpotQA Pooled-Index</span> Evaluation Report</h1>
+  <div class="meta">Generated on 2026-07-15 12:14 | HotpotQA distractor split | 50 queries × 2 k-values</div>
+  <div class="pills">
+    <span class="pill pill-blue">Generator: gemini-3.1-flash-lite</span>
+    <span class="pill pill-purple">Judge: Ragas (faithfulness + answer_relevancy)</span>
+    <span class="pill pill-green">Retriever: BGE-M3 + BM25 Ensemble + Cross-Encoder</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Summary Cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">NDCG@10</div>
+      <div class="card-value">0.947</div>
+      <div class="card-sub">Ranking quality (k=3 retrieval)</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Recall@5</div>
+      <div class="card-value">96.0<span style="font-size:1.2rem">%</span></div>
+      <div class="card-sub">Supporting docs in top-5</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Context Precision</div>
+      <div class="card-value">0.951</div>
+      <div class="card-sub">Relevant chunks / total retrieved</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Faithfulness</div>
+      <div class="card-value">0.957</div>
+      <div class="card-sub">Ragas grounded-claim score</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Answer Relevancy</div>
+      <div class="card-value">0.669</div>
+      <div class="card-sub">Ragas semantic alignment score</div>
+    </div>
+  </div>
+
+  <!-- Metric Bars -->
+  <div class="section-title">📈 Metric Overview</div>
+  <div class="bar-group">
+    <div class="bar-row">
+      <div class="bar-label">NDCG@10</div>
+      <div class="bar-track"><div class="bar-fill green" style="width:94.7%"></div></div>
+      <div class="bar-val">0.947</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Recall@5</div>
+      <div class="bar-track"><div class="bar-fill green" style="width:96.0%"></div></div>
+      <div class="bar-val">0.960</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Context Precision</div>
+      <div class="bar-track"><div class="bar-fill yellow" style="width:95.1%"></div></div>
+      <div class="bar-val">0.951</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Faithfulness (Ragas)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:95.7%"></div></div>
+      <div class="bar-val">0.957</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Answer Relevancy (Ragas)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:66.9%"></div></div>
+      <div class="bar-val">0.669</div>
+    </div>
+  </div>
+
+  <!-- Per-Query Table -->
+  <div class="section-title">🔍 Per-Query Results</div>
+  <input id="searchInput" class="search-bar" placeholder="🔍 Search by query or answer..." oninput="filterTable()">
+
+  <div class="table-wrap">
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Query &amp; Gold Docs</th>
+          <th>k</th>
+          <th>Generated Answer</th>
+          <th>Gold Answer</th>
+          <th>NDCG@10</th>
+          <th>Recall@5</th>
+          <th>CtxPrec</th>
+          <th>Faith</th>
+          <th>AnsRel</th>
+          <th>Ret / Gen / Eval</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        
+        <tr>
+          <td class="idx" rowspan="2">1</td>
+          <td class="query-cell" rowspan="2">Were Scott Derrickson and Ed Wood of the same nationality?<br><small style="color:var(--text-dim)">Gold: Scott Derrickson, Ed Wood</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Yes, they were both American. Scott Derrickson is described as an American director, screenwriter, and producer, and Edward Davis Wood Jr. is described as an American filmmaker, actor, writer, producer, and director.</td>
+          <td class="answer-cell">yes</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.895</td>
+          <td class="latency">2.88s / 1.27s / 14.49s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Yes, both Scott Derrickson and Ed Wood were American.</td>
+          <td class="answer-cell">yes</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.976</td>
+          <td class="latency">0.98s / 0.81s / 12.77s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">2</td>
+          <td class="query-cell" rowspan="2">What government position was held by the woman who portrayed Corliss Archer in the film Kiss and Tell?<br><small style="color:var(--text-dim)">Gold: Kiss and Tell (1945 film), Shirley Temple</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Based on the provided context, Shirley Temple portrayed Corliss Archer in the film *Kiss and Tell*. The context does not mention any government position held by Shirley Temple. Therefore, I cannot answer this question based on the provided text.</td>
+          <td class="answer-cell">Chief of Protocol</td>
+          <td class="score score-high">0.832</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.13s / 1.18s / 13.66s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">I cannot answer this question. The provided context states that Shirley Temple portrayed Corliss Archer in the film *Kiss and Tell*, but it does not mention her holding any government position.</td>
+          <td class="answer-cell">Chief of Protocol</td>
+          <td class="score score-high">0.832</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.16s / 2.12s / 13.39s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">3</td>
+          <td class="query-cell" rowspan="2">What science fantasy young adult series, told in first person, has a set of companion books narrating the stories of enslaved worlds and alien species?<br><small style="color:var(--text-dim)">Gold: The Hork-Bajir Chronicles, Animorphs</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The *Animorphs* series is a science fantasy young adult series told in first person that features companion books, such as *The Hork-Bajir Chronicles*, which narrate the stories of enslaved worlds and alien species.</td>
+          <td class="answer-cell">Animorphs</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.535</td>
+          <td class="latency">1.12s / 0.87s / 14.07s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The *Animorphs* series is a science fantasy young adult series told in the first person that includes companion books, such as *The Hork-Bajir Chronicles*, which narrates the story of how the Yeerks enslaved the Hork-Bajir and features perspectives from alien species.</td>
+          <td class="answer-cell">Animorphs</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.535</td>
+          <td class="latency">1.04s / 1.12s / 14.42s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">4</td>
+          <td class="query-cell" rowspan="2">Are the Laleli Mosque and Esma Sultan Mansion located in the same neighborhood?<br><small style="color:var(--text-dim)">Gold: Laleli Mosque, Esma Sultan Mansion</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">No. According to the provided context, the Laleli Mosque is located in the Laleli neighborhood of Fatih, while the Esma Sultan Mansion is located in the Ortaköy neighborhood.</td>
+          <td class="answer-cell">no</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.999</td>
+          <td class="latency">1.20s / 0.85s / 12.53s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">No. According to the provided context, the Laleli Mosque is located in the Laleli neighborhood of Fatih, while the Esma Sultan Mansion is located in the Ortaköy neighborhood.</td>
+          <td class="answer-cell">no</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.999</td>
+          <td class="latency">1.24s / 0.78s / 13.46s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">5</td>
+          <td class="query-cell" rowspan="2">The director of the romantic comedy &quot;Big Stone Gap&quot; is based in what New York city?<br><small style="color:var(--text-dim)">Gold: Big Stone Gap (film), Adriana Trigiani</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">I cannot answer this question based on the provided context. While the text identifies Adriana Trigiani as the director of the film *Big Stone Gap*, it does not state where she is based.</td>
+          <td class="answer-cell">Greenwich Village, New York City</td>
+          <td class="score score-mid">0.613</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.667</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.54s / 1.05s / 12.01s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">I cannot answer this question based on the provided context. While the text states that Adriana Trigiani wrote and directed the film *Big Stone Gap*, it does not provide information regarding her city of residence.</td>
+          <td class="answer-cell">Greenwich Village, New York City</td>
+          <td class="score score-mid">0.613</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.750</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.50s / 0.79s / 13.69s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">6</td>
+          <td class="query-cell" rowspan="2">2014 S/S is the debut album of a South Korean boy group that was formed by who?<br><small style="color:var(--text-dim)">Gold: 2014 S/S, Winner (band)</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">2014 S/S is the debut album of the South Korean group WINNER, which was formed by YG Entertainment.</td>
+          <td class="answer-cell">YG Entertainment</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.620</td>
+          <td class="latency">0.90s / 0.88s / 13.65s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">2014 S/S is the debut album of the South Korean group WINNER, which was formed by YG Entertainment.</td>
+          <td class="answer-cell">YG Entertainment</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.620</td>
+          <td class="latency">1.02s / 0.75s / 11.14s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">7</td>
+          <td class="query-cell" rowspan="2">Who was known by his stage name Aladin and helped organizations improve their performance as a consultant?<br><small style="color:var(--text-dim)">Gold: Management consulting, Eenasul Fateh</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Eenasul Fateh was known by his stage name Aladin and worked as a management consultant, a practice defined as helping organizations improve their performance.</td>
+          <td class="answer-cell">Eenasul Fateh</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-low">0.356</td>
+          <td class="latency">1.53s / 0.85s / 13.33s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Eenasul Fateh was known by his stage name Aladin and worked as a management consultant, a practice defined as helping organizations improve their performance.</td>
+          <td class="answer-cell">Eenasul Fateh</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-low">0.356</td>
+          <td class="latency">1.40s / 0.78s / 13.64s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">8</td>
+          <td class="query-cell" rowspan="2">The arena where the Lewiston Maineiacs played their home games can seat how many people?<br><small style="color:var(--text-dim)">Gold: Lewiston Maineiacs, Androscoggin Bank Colisée</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The Androscoggin Bank Colisée, where the Lewiston Maineiacs played their home games, has a capacity of 4,000 people (3,677 seated).</td>
+          <td class="answer-cell">3,677 seated</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.815</td>
+          <td class="latency">1.08s / 0.77s / 13.52s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The Androscoggin Bank Colisée, where the Lewiston Maineiacs played their home games, has a capacity of 4,000 people (3,677 seated).</td>
+          <td class="answer-cell">3,677 seated</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.815</td>
+          <td class="latency">1.12s / 0.96s / 12.55s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">9</td>
+          <td class="query-cell" rowspan="2">Who is older, Annie Morton or Terry Richardson?<br><small style="color:var(--text-dim)">Gold: Annie Morton, Terry Richardson</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Terry Richardson is older. He was born on August 14, 1965, and Annie Morton was born on October 8, 1970.</td>
+          <td class="answer-cell">Terry Richardson</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.973</td>
+          <td class="latency">0.96s / 0.94s / 13.81s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Terry Richardson is older. He was born on August 14, 1965, while Annie Morton was born on October 8, 1970.</td>
+          <td class="answer-cell">Terry Richardson</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.973</td>
+          <td class="latency">1.01s / 0.96s / 13.51s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">10</td>
+          <td class="query-cell" rowspan="2">Are Local H and For Against both from the United States?<br><small style="color:var(--text-dim)">Gold: For Against, Local H</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Yes, both Local H and For Against are from the United States. Local H is from Zion, Illinois, and For Against is from Lincoln, Nebraska.</td>
+          <td class="answer-cell">yes</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.972</td>
+          <td class="latency">1.24s / 1.04s / 13.43s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Yes, both Local H and For Against are from the United States. Local H is from Zion, Illinois, and For Against is from Lincoln, Nebraska.</td>
+          <td class="answer-cell">yes</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.972</td>
+          <td class="latency">1.13s / 3.25s / 13.32s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">11</td>
+          <td class="query-cell" rowspan="2">What is the name of the fight song of the university whose main campus is in Lawrence, Kansas and whose branch campuses are in the Kansas City metropolitan area?<br><small style="color:var(--text-dim)">Gold: Kansas Song, University of Kansas</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The name of the fight song is Kansas Song (We’re From Kansas).</td>
+          <td class="answer-cell">Kansas Song</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.618</td>
+          <td class="latency">1.07s / 0.89s / 12.57s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The name of the fight song is Kansas Song (We’re From Kansas).</td>
+          <td class="answer-cell">Kansas Song</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.618</td>
+          <td class="latency">1.14s / 0.96s / 12.24s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">12</td>
+          <td class="query-cell" rowspan="2">What screenwriter with credits for &quot;Evolution&quot; co-wrote a film starring Nicolas Cage and Téa Leoni?<br><small style="color:var(--text-dim)">Gold: The Family Man, David Weissman</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">David Weissman is the screenwriter who co-wrote &quot;The Family Man&quot; (2000), which stars Nicolas Cage and Téa Leoni, and also has writing credits for &quot;Evolution&quot; (2001).</td>
+          <td class="answer-cell">David Weissman</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.525</td>
+          <td class="latency">1.06s / 0.96s / 13.79s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">David Weissman is the screenwriter who has credits for &quot;Evolution&quot; and co-wrote &quot;The Family Man,&quot; which stars Nicolas Cage and Téa Leoni.</td>
+          <td class="answer-cell">David Weissman</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.722</td>
+          <td class="latency">1.08s / 0.72s / 13.04s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">13</td>
+          <td class="query-cell" rowspan="2">What year did Guns N Roses perform a promo for a movie starring Arnold Schwarzenegger as a former New York Police detective?<br><small style="color:var(--text-dim)">Gold: End of Days (film), Oh My God (Guns N&#x27; Roses song)</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Guns N&#x27; Roses released a promo for the film *End of Days* in 1999. In that film, Arnold Schwarzenegger stars as Jericho Cane, a former New York Police Department detective.</td>
+          <td class="answer-cell">1999</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.694</td>
+          <td class="latency">1.10s / 0.78s / 13.53s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Guns N&#x27; Roses released the song &quot;Oh My God&quot; in 1999 as a promo for the soundtrack to the film *End of Days*, which stars Arnold Schwarzenegger as a former New York Police Department detective.</td>
+          <td class="answer-cell">1999</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-low">0.491</td>
+          <td class="latency">1.06s / 0.97s / 12.35s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">14</td>
+          <td class="query-cell" rowspan="2">Are Random House Tower and 888 7th Avenue both used for real estate?<br><small style="color:var(--text-dim)">Gold: Random House Tower, 888 7th Avenue</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Based on the provided context, 888 7th Avenue is an office skyscraper that serves as the corporate headquarters for Vornado Realty Trust and houses Pershing Square Capital Management. The Random House Tower is a mixed-use tower used as the headquarters for the book publisher Random House and as a lu…</td>
+          <td class="answer-cell">no</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.909</td>
+          <td class="score score-high">0.985</td>
+          <td class="latency">4.68s / 1.27s / 25.50s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Yes. According to the provided text, both buildings are used for real estate purposes:
+
+*   **888 7th Avenue** is an office skyscraper that serves as the corporate headquarters for Vornado Realty Trust and houses the Red Eye Grill at street level.
+*   **Random House Tower** is a mixed-use tower used…</td>
+          <td class="answer-cell">no</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.991</td>
+          <td class="latency">4.64s / 1.24s / 14.39s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">15</td>
+          <td class="query-cell" rowspan="2">The football manager who recruited David Beckham managed Manchester United during what timeframe?<br><small style="color:var(--text-dim)">Gold: 1995–96 Manchester United F.C. season, Alex Ferguson</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">I cannot answer this question based on the provided context, as the text does not mention David Beckham or his recruitment.</td>
+          <td class="answer-cell">from 1986 to 2013</td>
+          <td class="score score-high">0.850</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">0.83s / 0.81s / 12.70s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The football manager who recruited David Beckham is Alex Ferguson, who managed Manchester United from 1986 to 2013.</td>
+          <td class="answer-cell">from 1986 to 2013</td>
+          <td class="score score-high">0.850</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.700</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.894</td>
+          <td class="latency">1.10s / 0.88s / 13.45s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">16</td>
+          <td class="query-cell" rowspan="2">Brown State Fishing Lake is in a country that has a population of how many inhabitants ?<br><small style="color:var(--text-dim)">Gold: Brown State Fishing Lake, Brown County, Kansas</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">I cannot answer this question based on the provided context. While the context states that Brown State Fishing Lake is in the United States, it does not provide the population of the United States.</td>
+          <td class="answer-cell">9,984</td>
+          <td class="score score-high">0.877</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.667</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.09s / 1.07s / 13.67s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">I cannot answer this question based on the provided context. While the context states that Brown State Fishing Lake is in the United States, it does not provide the population of the United States.</td>
+          <td class="answer-cell">9,984</td>
+          <td class="score score-high">0.877</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.750</td>
+          <td class="score score-mid">0.667</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.09s / 1.99s / 13.72s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">17</td>
+          <td class="query-cell" rowspan="2">The Vermont Catamounts men&#x27;s soccer team currently competes in a conference that was formerly known as what from 1988 to 1996?<br><small style="color:var(--text-dim)">Gold: America East Conference, Vermont Catamounts men&#x27;s soccer</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The Vermont Catamounts men&#x27;s soccer team competes in the America East Conference, which was known as the North Atlantic Conference from 1988 to 1996.</td>
+          <td class="answer-cell">the North Atlantic Conference</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.853</td>
+          <td class="latency">0.83s / 0.83s / 12.41s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The Vermont Catamounts men&#x27;s soccer team competes in the America East Conference, which was known as the North Atlantic Conference from 1988 to 1996.</td>
+          <td class="answer-cell">the North Atlantic Conference</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.853</td>
+          <td class="latency">0.75s / 0.68s / 13.02s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">18</td>
+          <td class="query-cell" rowspan="2">Are Giuseppe Verdi and Ambroise Thomas both Opera composers ?<br><small style="color:var(--text-dim)">Gold: Ambroise Thomas, Giuseppe Verdi</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Yes, both Giuseppe Verdi and Ambroise Thomas were opera composers.</td>
+          <td class="answer-cell">yes</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.990</td>
+          <td class="latency">1.25s / 0.71s / 12.60s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Yes, both Giuseppe Verdi and Ambroise Thomas were opera composers. The provided text identifies Giuseppe Verdi as an &quot;Italian opera composer&quot; and Ambroise Thomas as a &quot;French composer, best known for his operas &#x27;Mignon&#x27; (1866) and &#x27;Hamlet&#x27; (1868).&quot;</td>
+          <td class="answer-cell">yes</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.993</td>
+          <td class="latency">1.10s / 0.94s / 14.13s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">19</td>
+          <td class="query-cell" rowspan="2">Roger O. Egeberg was Assistant Secretary for Health and Scientific Affairs during the administration of a president that served during what years?<br><small style="color:var(--text-dim)">Gold: Richard Nixon, Roger O. Egeberg</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Roger O. Egeberg served as Assistant Secretary for Health and Scientific Affairs during the Nixon administration. Richard Nixon served as President of the United States from 1969 until 1974.</td>
+          <td class="answer-cell">1969 until 1974</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.703</td>
+          <td class="latency">1.78s / 1.47s / 12.72s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Roger O. Egeberg served as Assistant Secretary for Health and Scientific Affairs during the Nixon administration. Richard Nixon served as President from 1969 until 1974.</td>
+          <td class="answer-cell">1969 until 1974</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.703</td>
+          <td class="latency">1.56s / 0.92s / 11.23s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">20</td>
+          <td class="query-cell" rowspan="2">Which writer was from England, Henry Roth or Robert Erskine Childers?<br><small style="color:var(--text-dim)">Gold: Robert Erskine Childers, Henry Roth</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Robert Erskine Childers was the writer from England.</td>
+          <td class="answer-cell">Robert Erskine Childers DSC</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.507</td>
+          <td class="latency">0.78s / 1.19s / 13.36s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Robert Erskine Childers was from England. The provided text identifies him as a British writer, whereas Henry Roth is identified as an American novelist.</td>
+          <td class="answer-cell">Robert Erskine Childers DSC</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.667</td>
+          <td class="score score-high">0.931</td>
+          <td class="latency">0.85s / 0.83s / 13.65s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">21</td>
+          <td class="query-cell" rowspan="2">Which other Mexican Formula One race car driver has held the podium besides the Force India driver born in 1990?<br><small style="color:var(--text-dim)">Gold: Formula One drivers from Mexico, Sergio Pérez</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Based on the provided context, Pedro Rodríguez is the only other Mexican Formula One driver mentioned to have achieved a podium finish (specifically noted as the only Mexican driver to have won a grand prix).</td>
+          <td class="answer-cell">Pedro Rodríguez</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.750</td>
+          <td class="score score-high">0.826</td>
+          <td class="latency">1.01s / 0.94s / 13.63s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Based on the provided context, Pedro Rodríguez is the only other Mexican Formula One driver mentioned to have achieved success, specifically being the only one to have won a grand prix. However, the text states that Sergio Pérez is the &quot;only other Mexican to finish on the podium&quot; besides the drivers…</td>
+          <td class="answer-cell">Pedro Rodríguez</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.787</td>
+          <td class="latency">1.01s / 1.08s / 12.21s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">22</td>
+          <td class="query-cell" rowspan="2">This singer of A Rather Blustery Day also voiced what hedgehog?<br><small style="color:var(--text-dim)">Gold: Jim Cummings, A Rather Blustery Day</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The singer of &quot;A Rather Blustery Day&quot; is Jim Cummings, who voiced Dr. Robotnik in &quot;Sonic the Hedgehog.&quot;</td>
+          <td class="answer-cell">Sonic</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.705</td>
+          <td class="latency">1.32s / 0.98s / 13.32s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The singer of &quot;A Rather Blustery Day&quot; is Jim Cummings, who voiced Dr. Robotnik from &quot;Sonic the Hedgehog.&quot;</td>
+          <td class="answer-cell">Sonic</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.685</td>
+          <td class="latency">1.10s / 0.77s / 13.21s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">23</td>
+          <td class="query-cell" rowspan="2">Aside from the Apple Remote, what other device can control the program Apple Remote was originally designed to interact with?<br><small style="color:var(--text-dim)">Gold: Front Row (software), Apple Remote</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Aside from the Apple Remote, the Front Row software can be controlled by the keyboard function keys.</td>
+          <td class="answer-cell">keyboard function keys</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.596</td>
+          <td class="latency">1.20s / 0.90s / 11.48s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Aside from the Apple Remote, the Front Row software can be controlled by the keyboard function keys.</td>
+          <td class="answer-cell">keyboard function keys</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.596</td>
+          <td class="latency">1.22s / 0.70s / 13.13s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">24</td>
+          <td class="query-cell" rowspan="2">Which performance act has a higher instrument to person ratio, Badly Drawn Boy or Wolf Alice? <br><small style="color:var(--text-dim)">Gold: Wolf Alice, Badly Drawn Boy</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">To determine the instrument-to-person ratio, we look at the number of members and their roles as described in the context:
+
+*   **Wolf Alice:** This is a four-piece band consisting of four members (Ellie Rowsell, Joff Oddie, Theo Ellis, and Joel Amey). The context lists their roles as vocals/guitar,…</td>
+          <td class="answer-cell">Badly Drawn Boy</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-low">0.400</td>
+          <td class="score score-high">0.968</td>
+          <td class="latency">1.26s / 1.68s / 14.44s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Based on the provided context, it is not possible to determine which act has a higher instrument-to-person ratio.
+
+While the context identifies Wolf Alice as a four-piece band and describes Badly Drawn Boy (Damon Gough) as a multi-instrumentalist, it does not provide a comprehensive list of all inst…</td>
+          <td class="answer-cell">Badly Drawn Boy</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.24s / 1.34s / 24.86s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">25</td>
+          <td class="query-cell" rowspan="2">What was the father of Kasper Schmeichel voted to be by the IFFHS in 1992?<br><small style="color:var(--text-dim)">Gold: Kasper Schmeichel, Peter Schmeichel</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The father of Kasper Schmeichel, Peter Schmeichel, was voted the IFFHS World&#x27;s Best Goalkeeper in 1992.</td>
+          <td class="answer-cell">World&#x27;s Best Goalkeeper</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.634</td>
+          <td class="latency">1.02s / 1.01s / 13.43s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The father of Kasper Schmeichel, Peter Schmeichel, was voted the IFFHS World&#x27;s Best Goalkeeper in 1992.</td>
+          <td class="answer-cell">World&#x27;s Best Goalkeeper</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.634</td>
+          <td class="latency">0.97s / 0.71s / 12.37s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">26</td>
+          <td class="query-cell" rowspan="2">Who was the writer of These Boots Are Made for Walkin&#x27; and who died in 2007?<br><small style="color:var(--text-dim)">Gold: These Boots Are Made for Walkin&#x27;, Lee Hazlewood</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The writer of &quot;These Boots Are Made for Walkin&#x27;&quot; is Lee Hazlewood. The provided context does not contain information regarding who died in 2007; therefore, I cannot answer that part of your question.</td>
+          <td class="answer-cell">Barton Lee Hazlewood</td>
+          <td class="score score-mid">0.613</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.10s / 1.11s / 12.22s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Based on the provided context, Lee Hazlewood is the writer of &quot;These Boots Are Made for Walkin&#x27;&quot;. The provided text does not contain information regarding who died in 2007; therefore, I cannot answer that part of your question.</td>
+          <td class="answer-cell">Barton Lee Hazlewood</td>
+          <td class="score score-mid">0.613</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.09s / 0.88s / 13.51s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">27</td>
+          <td class="query-cell" rowspan="2">The 2011–12 VCU Rams men&#x27;s basketball team, led by third year head coach Shaka Smart, represented Virginia Commonwealth University which was founded in what year?<br><small style="color:var(--text-dim)">Gold: Virginia Commonwealth University, 2011–12 VCU Rams men&#x27;s basketball team</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Virginia Commonwealth University was founded in 1838.</td>
+          <td class="answer-cell">1838</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.751</td>
+          <td class="latency">1.20s / 0.94s / 13.16s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Virginia Commonwealth University was founded in 1838.</td>
+          <td class="answer-cell">1838</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.751</td>
+          <td class="latency">1.11s / 0.84s / 13.32s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">28</td>
+          <td class="query-cell" rowspan="2">Are both Dictyosperma, and Huernia described as a genus?<br><small style="color:var(--text-dim)">Gold: Huernia, Dictyosperma</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Yes, both Dictyosperma and Huernia are described as a genus.</td>
+          <td class="answer-cell">yes</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.998</td>
+          <td class="latency">1.30s / 0.85s / 13.32s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Yes, both *Dictyosperma* and *Huernia* are described as a genus.</td>
+          <td class="answer-cell">yes</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.998</td>
+          <td class="latency">1.23s / 0.66s / 13.23s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">29</td>
+          <td class="query-cell" rowspan="2">Kaiser Ventures corporation was founded by an American industrialist who became known as the father of modern American shipbuilding?<br><small style="color:var(--text-dim)">Gold: Kaiser Ventures, Henry J. Kaiser</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Yes. Kaiser Ventures (formerly Kaiser Steel) was founded by Henry J. Kaiser, an American industrialist who became known as the father of modern American shipbuilding.</td>
+          <td class="answer-cell">Henry J. Kaiser</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.745</td>
+          <td class="latency">1.34s / 0.79s / 13.34s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Yes. Kaiser Ventures (formerly Kaiser Steel) was founded by Henry J. Kaiser, an American industrialist who became known as the father of modern American shipbuilding.</td>
+          <td class="answer-cell">Henry J. Kaiser</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.745</td>
+          <td class="latency">1.29s / 0.77s / 11.45s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">30</td>
+          <td class="query-cell" rowspan="2">What is the name for the adventure in &quot;Tunnels and Trolls&quot;, a game designed by Ken St. Andre?<br><small style="color:var(--text-dim)">Gold: Tunnels &amp;amp; Trolls, Arena of Khazan</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The name of the adventure for &quot;Tunnels &amp; Trolls&quot; mentioned in the context is &quot;Arena of Khazan.&quot;</td>
+          <td class="answer-cell">Arena of Khazan</td>
+          <td class="score score-mid">0.693</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.583</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.760</td>
+          <td class="latency">1.28s / 0.80s / 13.22s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The adventure for &quot;Tunnels &amp; Trolls&quot; mentioned in the context is &quot;Arena of Khazan.&quot;</td>
+          <td class="answer-cell">Arena of Khazan</td>
+          <td class="score score-mid">0.693</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.583</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.760</td>
+          <td class="latency">1.18s / 0.71s / 13.04s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">31</td>
+          <td class="query-cell" rowspan="2">When was Poison&#x27;s album &quot;Shut Up, Make Love&quot; released?<br><small style="color:var(--text-dim)">Gold: Shut Up, Make Love, Poison (American band)</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">I cannot answer this question because &quot;Shut Up, Make Love&quot; is a song, not an album. According to the provided text, &quot;Shut Up, Make Love&quot; is a song from Poison&#x27;s 2000 album titled &quot;Crack a Smile...and More!&quot;.</td>
+          <td class="answer-cell">2000</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.737</td>
+          <td class="latency">1.44s / 0.83s / 13.81s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">&quot;Shut Up, Make Love&quot; is not an album; it is a song by the band Poison. The song was released in 2000 as the first single from the album *Crack a Smile...and More!*, which was released on March 14, 2000.</td>
+          <td class="answer-cell">2000</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.935</td>
+          <td class="latency">1.36s / 0.83s / 12.07s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">32</td>
+          <td class="query-cell" rowspan="2">Hayden is a singer-songwriter from Canada, but where does Buck-Tick hail from?<br><small style="color:var(--text-dim)">Gold: Buck-Tick, Hayden (musician)</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Buck-Tick hails from Fujioka, Gunma, Japan.</td>
+          <td class="answer-cell">Fujioka, Gunma</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.772</td>
+          <td class="latency">1.02s / 0.84s / 12.14s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Buck-Tick hails from Fujioka, Gunma, Japan.</td>
+          <td class="answer-cell">Fujioka, Gunma</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.772</td>
+          <td class="latency">1.02s / 0.85s / 13.06s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">33</td>
+          <td class="query-cell" rowspan="2">Which  French ace pilot and adventurer fly L&#x27;Oiseau Blanc<br><small style="color:var(--text-dim)">Gold: L&#x27;Oiseau Blanc, Charles Nungesser</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The French ace pilot and adventurer who flew *L&#x27;Oiseau Blanc* was Charles Nungesser.</td>
+          <td class="answer-cell">Charles Eugène</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.952</td>
+          <td class="latency">0.87s / 0.89s / 13.91s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Charles Nungesser was the French ace pilot and adventurer who flew L&#x27;Oiseau Blanc.</td>
+          <td class="answer-cell">Charles Eugène</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.954</td>
+          <td class="latency">0.95s / 0.63s / 9.73s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">34</td>
+          <td class="query-cell" rowspan="2">Are Freakonomics and In the Realm of the Hackers both American documentaries?<br><small style="color:var(--text-dim)">Gold: In the Realm of the Hackers, Freakonomics (film)</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">No. According to the provided text, *In the Realm of the Hackers* is an Australian documentary, while *Freakonomics* is an American documentary.</td>
+          <td class="answer-cell">no</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.993</td>
+          <td class="latency">1.26s / 0.77s / 13.51s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">No. According to the provided text, *Freakonomics* is an American documentary, but *In the Realm of the Hackers* is an Australian documentary.</td>
+          <td class="answer-cell">no</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.722</td>
+          <td class="latency">1.31s / 0.73s / 12.55s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">35</td>
+          <td class="query-cell" rowspan="2">Which band, Letters to Cleo or Screaming Trees, had more members?<br><small style="color:var(--text-dim)">Gold: Screaming Trees, Letters to Cleo</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Based on the provided context, Letters to Cleo had more members. 
+
+Letters to Cleo had six members (Kay Hanley, Greg McKenna, Michael Eisenstein, Stacy Jones, Scott Riebling, and Tom Polce). Screaming Trees had five members (Mark Lanegan, Gary Lee Conner, Van Conner, Mark Pickerel, and Barrett Marti…</td>
+          <td class="answer-cell">Letters to Cleo</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.993</td>
+          <td class="latency">1.13s / 1.34s / 14.61s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Based on the provided context, Letters to Cleo had more members.
+
+Letters to Cleo had six members: Kay Hanley, Greg McKenna, Michael Eisenstein, Stacy Jones, Scott Riebling, and Tom Polce.
+
+Screaming Trees had five members mentioned: Mark Lanegan, Gary Lee Conner, Van Conner, Mark Pickerel, and Barr…</td>
+          <td class="answer-cell">Letters to Cleo</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.989</td>
+          <td class="latency">1.23s / 1.03s / 14.59s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">36</td>
+          <td class="query-cell" rowspan="2">Alexander Kerensky was defeated and destroyed by the Bolsheviks in the course of a civil war that ended when ?<br><small style="color:var(--text-dim)">Gold: Russian Civil War, Socialist Revolutionary Party</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Based on the provided context, the anti-Bolshevik faction of the Socialist Revolutionary Party, which remained loyal to Alexander Kerensky, was defeated and destroyed by the Bolsheviks in the course of the Russian Civil War. The Russian Civil War ended in 1923, in the sense that Red control of the n…</td>
+          <td class="answer-cell">October 1922</td>
+          <td class="score score-mid">0.693</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.583</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.660</td>
+          <td class="latency">1.24s / 0.99s / 13.76s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Based on the provided context, the Russian Civil War ended in 1923, in the sense that Red control of the newly formed Soviet Union was assured.</td>
+          <td class="answer-cell">October 1922</td>
+          <td class="score score-mid">0.693</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.583</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.669</td>
+          <td class="latency">1.25s / 1.21s / 12.66s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">37</td>
+          <td class="query-cell" rowspan="2">Seven Brief Lessons on Physics was written by an Italian physicist that has worked in France since what year?<br><small style="color:var(--text-dim)">Gold: Carlo Rovelli, Seven Brief Lessons on Physics</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">*Seven Brief Lessons on Physics* was written by Carlo Rovelli, who has worked in France since 2000.</td>
+          <td class="answer-cell">2000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.813</td>
+          <td class="latency">1.22s / 0.89s / 13.50s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">*Seven Brief Lessons on Physics* was written by Carlo Rovelli, who has worked in France since 2000.</td>
+          <td class="answer-cell">2000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.813</td>
+          <td class="latency">1.17s / 0.97s / 13.31s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">38</td>
+          <td class="query-cell" rowspan="2">The Livesey Hal War Memorial commemorates the fallen of which war, that had over 60 million casualties?<br><small style="color:var(--text-dim)">Gold: World War II casualties, Livesey Hall War Memorial</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The Livesey Hall War Memorial commemorates the fallen of World War II, which had over 60 million casualties.</td>
+          <td class="answer-cell">World War II</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.769</td>
+          <td class="latency">1.14s / 0.98s / 13.46s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The Livesey Hall War Memorial commemorates the fallen of World War II, which had over 60 million casualties.</td>
+          <td class="answer-cell">World War II</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-mid">0.769</td>
+          <td class="latency">1.17s / 0.79s / 10.84s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">39</td>
+          <td class="query-cell" rowspan="2">Are both Elko Regional Airport and Gerald R. Ford International Airport located in Michigan?<br><small style="color:var(--text-dim)">Gold: Gerald R. Ford International Airport, Elko Regional Airport</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">No. Only Gerald R. Ford International Airport is located in Michigan. Elko Regional Airport is located in Elko County, Nevada.</td>
+          <td class="answer-cell">no</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.850</td>
+          <td class="latency">1.04s / 0.91s / 13.63s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">No. Gerald R. Ford International Airport is located in Michigan, but Elko Regional Airport is located in Nevada.</td>
+          <td class="answer-cell">no</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.729</td>
+          <td class="latency">1.05s / 0.92s / 13.23s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">40</td>
+          <td class="query-cell" rowspan="2">Ralph Hefferline was a psychology professor at a university that is located in what city?<br><small style="color:var(--text-dim)">Gold: Columbia University, Ralph Hefferline</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Ralph Hefferline was a psychology professor at Columbia University, which is located in New York City.</td>
+          <td class="answer-cell">New York City</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.706</td>
+          <td class="latency">1.21s / 0.87s / 12.22s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Ralph Hefferline was a psychology professor at Columbia University, which is located in New York City.</td>
+          <td class="answer-cell">New York City</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.706</td>
+          <td class="latency">1.26s / 0.71s / 12.40s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">41</td>
+          <td class="query-cell" rowspan="2">Which dog&#x27;s ancestors include Gordon and Irish Setters: the Manchester Terrier or the Scotch Collie?<br><small style="color:var(--text-dim)">Gold: Manchester Terrier, Scotch Collie</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The Scotch Collie&#x27;s ancestors include the Gordon and Irish Setters.</td>
+          <td class="answer-cell">Scotch Collie</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.747</td>
+          <td class="latency">1.06s / 1.01s / 13.04s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The Scotch Collie&#x27;s ancestors include the Gordon and Irish Setters.</td>
+          <td class="answer-cell">Scotch Collie</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.747</td>
+          <td class="latency">1.14s / 0.64s / 13.34s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">42</td>
+          <td class="query-cell" rowspan="2">Where is the company that Sachin Warrier worked for as a software engineer headquartered? <br><small style="color:var(--text-dim)">Gold: Tata Consultancy Services, Sachin Warrier</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The company that Sachin Warrier worked for, Tata Consultancy Services, is headquartered in Mumbai, Maharashtra.</td>
+          <td class="answer-cell">Mumbai</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.952</td>
+          <td class="latency">1.35s / 0.82s / 13.03s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The company that Sachin Warrier worked for as a software engineer is Tata Consultancy Services, which is headquartered in Mumbai, Maharashtra.</td>
+          <td class="answer-cell">Mumbai</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.949</td>
+          <td class="latency">1.16s / 0.73s / 13.31s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">43</td>
+          <td class="query-cell" rowspan="2">A Japanese manga series based on a 16 year old high school student Ichitaka Seto, is written and illustrated by someone born in what year?<br><small style="color:var(--text-dim)">Gold: Masakazu Katsura, I&amp;quot;s</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The manga series featuring Ichitaka Seto is *I&quot;s*, which was written and illustrated by Masakazu Katsura. The provided context does not contain information regarding the year of Masakazu Katsura&#x27;s birth; therefore, I cannot answer this question based on the provided RAG context.</td>
+          <td class="answer-cell">1962</td>
+          <td class="score score-high">0.832</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.750</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.07s / 0.98s / 13.54s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The provided RAG context does not contain information regarding the birth year of Masakazu Katsura, the author and illustrator of *I&quot;s*. Therefore, I cannot answer this question based on the provided context.</td>
+          <td class="answer-cell">1962</td>
+          <td class="score score-high">0.832</td>
+          <td class="score score-mid">0.500</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.667</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.28s / 0.79s / 12.30s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">44</td>
+          <td class="query-cell" rowspan="2">The battle in which Giuseppe Arimondi lost his life secured what for Ethiopia?<br><small style="color:var(--text-dim)">Gold: Battle of Adwa, Giuseppe Arimondi</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The battle in which Giuseppe Arimondi lost his life (the Battle of Adwa) secured Ethiopian sovereignty and freedom from colonization.</td>
+          <td class="answer-cell">sovereignty</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.729</td>
+          <td class="latency">1.54s / 0.82s / 13.74s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The battle in which Giuseppe Arimondi lost his life (the Battle of Adwa) secured Ethiopian sovereignty.</td>
+          <td class="answer-cell">sovereignty</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.909</td>
+          <td class="latency">1.44s / 1.53s / 13.85s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">45</td>
+          <td class="query-cell" rowspan="2">Alfred Balk served as the secretary of the Committee on the Employment of Minority Groups in the News Media under which United States Vice President?<br><small style="color:var(--text-dim)">Gold: Nelson Rockefeller, Alfred Balk</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Alfred Balk served as the secretary of the Committee on the Employment of Minority Groups in the News Media under Nelson Rockefeller, who was the Governor of New York at the time.</td>
+          <td class="answer-cell">Nelson Rockefeller</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.642</td>
+          <td class="latency">1.03s / 1.02s / 13.12s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Based on the provided text, Alfred Balk served as secretary of New York Governor Nelson Rockefeller&#x27;s Committee on the Employment of Minority Groups in the News Media. The context does not state that this committee was under a United States Vice President.</td>
+          <td class="answer-cell">Nelson Rockefeller</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.785</td>
+          <td class="latency">1.05s / 1.43s / 13.84s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">46</td>
+          <td class="query-cell" rowspan="2">A medieval fortress in Dirleton, East Lothian, Scotland borders on the south side of what coastal area?<br><small style="color:var(--text-dim)">Gold: Yellowcraigs, Dirleton Castle</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The medieval fortress in Dirleton, East Lothian, Scotland (Dirleton Castle) borders the south side of the coastal area known as Yellowcraig (also known as Broad Sands Bay).</td>
+          <td class="answer-cell">Yellowcraig</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.697</td>
+          <td class="latency">0.95s / 1.01s / 13.19s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The medieval fortress in Dirleton, Dirleton Castle, borders on the south side of the coastal area known as Yellowcraig (or Yellowcraigs).</td>
+          <td class="answer-cell">Yellowcraig</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.750</td>
+          <td class="score score-mid">0.620</td>
+          <td class="latency">1.01s / 0.88s / 13.94s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">47</td>
+          <td class="query-cell" rowspan="2">Who is the writer of this song that was inspired by words on a tombstone and was the first track on the box set Back to Mono?<br><small style="color:var(--text-dim)">Gold: Back to Mono (1958–1969), To Know Him Is to Love Him</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">The writer of the song is Phil Spector.</td>
+          <td class="answer-cell">Phil Spector</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.589</td>
+          <td class="latency">1.45s / 1.01s / 13.41s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">The writer of the song &quot;To Know Him Is to Love Him,&quot; which was inspired by words on his father&#x27;s tombstone and served as the first track on the *Back to Mono (1958–1969)* box set, is Phil Spector.</td>
+          <td class="answer-cell">Phil Spector</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.775</td>
+          <td class="latency">1.40s / 0.86s / 14.06s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">48</td>
+          <td class="query-cell" rowspan="2">What type of forum did a former Soviet statesman initiate?<br><small style="color:var(--text-dim)">Gold: Mikhail Gorbachev, World Summit of Nobel Peace Laureates</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">A former Soviet statesman, Mikhail Gorbachev, initiated the World Summit of Nobel Peace Laureates, which is a forum for Nobel Peace Laureates and Peace Laureate Organizations to address global issues and encourage peace and human well-being.</td>
+          <td class="answer-cell">Organizations could come together to address global issues</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.510</td>
+          <td class="latency">1.23s / 0.92s / 13.70s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">A former Soviet statesman, Mikhail Gorbachev, initiated the World Summit of Nobel Peace Laureates, which is a forum where Nobel Peace Laureates and Peace Laureate Organizations come together to address global issues to encourage and support peace and human well-being in the world.</td>
+          <td class="answer-cell">Organizations could come together to address global issues</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-mid">0.510</td>
+          <td class="latency">1.17s / 0.97s / 13.61s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">49</td>
+          <td class="query-cell" rowspan="2">Are Ferocactus and Silene both types of plant?<br><small style="color:var(--text-dim)">Gold: Silene, Ferocactus</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Yes, both *Ferocactus* and *Silene* are types of plants. *Silene* is a genus of flowering plants in the family Caryophyllaceae, and *Ferocactus* is a genus of barrel-shaped cacti.</td>
+          <td class="answer-cell">yes</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.999</td>
+          <td class="latency">1.12s / 0.83s / 13.54s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Yes, both *Ferocactus* and *Silene* are types of plants. *Silene* is a genus of flowering plants in the family Caryophyllaceae, and *Ferocactus* is a genus of large barrel-shaped cacti.</td>
+          <td class="answer-cell">yes</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.999</td>
+          <td class="latency">1.20s / 0.87s / 11.98s</td>
+        </tr>
+        <tr>
+          <td class="idx" rowspan="2">50</td>
+          <td class="query-cell" rowspan="2">Which British first-generation jet-powered medium bomber was used in the South West Pacific theatre of World War II?<br><small style="color:var(--text-dim)">Gold: English Electric Canberra, No. 2 Squadron RAAF</small></td>
+          <td><span style="background:#2563eb22;color:#60a5fa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=3</span></td>
+          <td class="answer-cell">Based on the provided context, I cannot answer this question. While the English Electric Canberra is identified as a British first-generation jet-powered medium bomber, the text states it was developed in the mid-to-late 1940s and introduced to service in 1951, which is after World War II. The text …</td>
+          <td class="answer-cell">English Electric Canberra</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-mid">0.750</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.07s / 1.16s / 25.18s</td>
+        </tr>
+        <tr style="background:rgba(30,30,60,0.3)">
+          <td><span style="background:#7c3aed22;color:#a78bfa;padding:2px 7px;border-radius:4px;font-size:0.75rem;">k=5</span></td>
+          <td class="answer-cell">Based on the provided context, I cannot answer this question. While the English Electric Canberra is identified as a British first-generation jet-powered medium bomber, the text states it was developed in the mid-to-late 1940s and introduced to service in 1951, which is after World War II. No Britis…</td>
+          <td class="answer-cell">English Electric Canberra</td>
+          <td class="score score-high">0.920</td>
+          <td class="score score-high">1.000</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-high">0.833</td>
+          <td class="score score-low">0.000</td>
+          <td class="latency">1.04s / 1.25s / 14.15s</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  HotpotQA Pooled-Index Evaluation · 2026-07-15 12:14 · 50 queries · Ragas v0.4.3
+</footer>
+
+<script>
+  function filterTable() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    document.querySelectorAll('#tableBody tr').forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+  document.querySelectorAll('td.score').forEach(cell => {
+    const v = parseFloat(cell.textContent);
+    if (v >= 0.8) cell.classList.add('score-high');
+    else if (v >= 0.5) cell.classList.add('score-mid');
+    else cell.classList.add('score-low');
+  });
+</script>
+</body>
+</html>

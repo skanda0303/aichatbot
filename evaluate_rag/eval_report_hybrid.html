@@ -1,0 +1,1770 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hybrid RAG + Web Evaluation Report</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d2e; --surface2: #252840;
+      --border: #2e3258; --accent: #6366f1; --accent2: #8b5cf6;
+      --green: #22c55e; --red: #ef4444; --yellow: #f59e0b;
+      --text: #e2e8f0; --text-muted: #94a3b8; --text-dim: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1a1d2e 0%, #252840 50%, #1e1b4b 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 2.5rem 3rem;
+      position: relative; overflow: hidden;
+    }
+    .header::before {
+      content: ''; position: absolute; top: -50%; right: -10%;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .header h1 { font-size: 2rem; font-weight: 700; color: #fff; }
+    .header h1 span { background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header .meta { margin-top: 0.5rem; color: var(--text-muted); font-size: 0.9rem; }
+    .header .pills { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+    .pill {
+      padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.78rem; font-weight: 500;
+      border: 1px solid;
+    }
+    .pill-blue { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); color: #818cf8; }
+    .pill-green { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.35); color: #4ade80; }
+    .pill-purple { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: #a78bfa; }
+
+    /* Main layout */
+    .container { max-width: 1600px; margin: 0 auto; padding: 2rem 3rem; }
+
+    /* Summary cards */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 2.5rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem;
+      position: relative; overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+    .card.card-green::before { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .card.card-red::before   { background: linear-gradient(90deg, #ef4444, #dc2626); }
+    .card.card-yellow::before{ background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .card-label { font-size: 0.78rem; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .card-value { font-size: 2.2rem; font-weight: 700; color: #fff; margin-top: 0.4rem; line-height: 1; }
+    .card-sub   { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.5rem; }
+
+    /* Section title */
+    .section-title {
+      font-size: 1.1rem; font-weight: 600; color: var(--text);
+      margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.6rem;
+    }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* Confusion matrix */
+    .cm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-radius: 12px; overflow: hidden; max-width: 480px; }
+    .cm-cell {
+      background: var(--surface2); padding: 1.5rem; text-align: center;
+    }
+    .cm-cell.tp, .cm-cell.tn { background: rgba(34,197,94,0.08); }
+    .cm-cell.fp, .cm-cell.fn { background: rgba(239,68,68,0.08); }
+    .cm-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+    .cm-name  { font-size: 0.85rem; color: var(--text-muted); margin: 0.3rem 0; }
+    .cm-val   { font-size: 2.5rem; font-weight: 700; color: #fff; }
+    .cm-val.green { color: var(--green); }
+    .cm-val.red   { color: var(--red); }
+
+    /* Confusion matrix wrapper */
+    .cm-wrapper { display: flex; gap: 3rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 2.5rem; }
+    .cm-legend { flex: 1; min-width: 260px; }
+    .cm-legend h4 { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.8rem; }
+    .cm-legend ul { list-style: none; display: flex; flex-direction: column; gap: 0.45rem; }
+    .cm-legend li { font-size: 0.83rem; color: var(--text-dim); }
+    .cm-legend li strong { color: var(--text-muted); }
+
+    /* Bar charts */
+    .bar-group { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 2rem; }
+    .bar-row { display: flex; align-items: center; gap: 1rem; }
+    .bar-label { width: 160px; font-size: 0.82rem; color: var(--text-muted); flex-shrink: 0; text-align: right; }
+    .bar-track { flex: 1; height: 10px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+    .bar-fill.green { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .bar-val   { width: 52px; font-size: 0.82rem; color: var(--text); font-weight: 600; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); margin-top: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th {
+      background: var(--surface); color: var(--text-muted);
+      font-size: 0.73rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.07em; padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+    }
+    tbody tr { border-bottom: 1px solid rgba(46,50,88,0.5); transition: background 0.15s; }
+    tbody tr:hover { background: rgba(99,102,241,0.04); }
+    tbody tr:last-child { border-bottom: none; }
+    td { padding: 0.75rem 1rem; vertical-align: top; }
+    td.idx { color: var(--text-dim); font-size: 0.75rem; }
+    td.route-badge { min-width: 110px; font-size: 0.78rem; }
+    td.query-cell { min-width: 280px; max-width: 380px; color: var(--text); }
+    td.answer-cell { min-width: 240px; max-width: 320px; color: var(--text-muted); font-size: 0.8rem; }
+    td.ref-cell { min-width: 140px; max-width: 200px; color: var(--text-dim); font-size: 0.8rem; }
+    td.em-cell { text-align: center; font-size: 1rem; }
+    td.score { text-align: center; font-weight: 600; }
+    td.latency { text-align: right; color: var(--text-muted); font-size: 0.8rem; }
+    td.reasoning-cell { min-width: 200px; max-width: 280px; color: var(--text-dim); font-size: 0.78rem; font-style: italic; }
+
+    /* Score colors */
+    td.score { }
+    .score-high { color: #4ade80; }
+    .score-mid  { color: #fbbf24; }
+    .score-low  { color: #f87171; }
+
+    /* Search */
+    .search-bar {
+      width: 100%; padding: 0.65rem 1rem; border-radius: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-size: 0.88rem; outline: none;
+      margin-bottom: 1rem; transition: border-color 0.2s;
+    }
+    .search-bar:focus { border-color: var(--accent); }
+
+    /* Filter tabs */
+    .filter-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .ftab {
+      padding: 0.35rem 0.9rem; border-radius: 6px; font-size: 0.8rem;
+      cursor: pointer; border: 1px solid var(--border); background: var(--surface);
+      color: var(--text-muted); transition: all 0.15s;
+    }
+    .ftab:hover, .ftab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    footer { text-align: center; padding: 2rem; color: var(--text-dim); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 3rem; }
+  </style>
+</head>
+<body>
+<div class="header">
+<h1>🔀 <span>Hybrid RAG + Web</span> Evaluation Report</h1>
+<div class="meta">Generated on 2026-07-14 11:31:10 | SciFact (RAG) + Natural Questions (Web) | 100 queries</div>
+<div class="pills">
+<span class="pill pill-blue">Generator: gemini-3.1-flash-lite</span>
+<span class="pill pill-purple">Judge: gemini-3.1-flash-lite</span>
+<span class="pill pill-green">Retriever: BGE-M3 + Cross-Encoder</span>
+</div>
+</div>
+<div class="container">
+<!-- ── Summary Cards ── -->
+<div class="cards">
+<div class="card card-green">
+<div class="card-label">Routing Accuracy</div>
+<div class="card-value">82.0<span style="font-size:1.2rem">%</span></div>
+<div class="card-sub">82/100 correctly routed</div>
+</div>
+<div class="card">
+<div class="card-label">Faithfulness</div>
+<div class="card-value">0.95</div>
+<div class="card-sub">avg over all 100 queries</div>
+</div>
+<div class="card">
+<div class="card-label">Answer Relevancy</div>
+<div class="card-value">0.99</div>
+<div class="card-sub">avg over all 100 queries</div>
+</div>
+
+<div class="card card-yellow">
+<div class="card-label">Avg Web Latency</div>
+<div class="card-value">1.4<span style="font-size:1.2rem">s</span></div>
+<div class="card-sub">search + generation time</div>
+</div>
+</div>
+<!-- ── Confusion Matrix ── -->
+<div class="section-title">📊 Routing Confusion Matrix</div>
+<div class="cm-wrapper">
+<div>
+<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.6rem;text-align:center;">Predicted Route →</div>
+<div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:1px;background:var(--border);border-radius:12px;overflow:hidden;">
+<div style="background:var(--surface);padding:0.75rem;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-dim);">Actual ↓</div>
+<div style="background:var(--surface);padding:0.75rem;text-align:center;font-size:0.75rem;color:var(--text-muted);font-weight:600;">RAG</div>
+<div style="background:var(--surface);padding:0.75rem;text-align:center;font-size:0.75rem;color:var(--text-muted);font-weight:600;">WEB</div>
+<div style="background:var(--surface);padding:0.75rem;display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:var(--text-muted);font-weight:600;writing-mode:horizontal-tb;">RAG</div>
+<div class="cm-cell tp">
+<div class="cm-label">TP</div>
+<div class="cm-name">Correct RAG</div>
+<div class="cm-val green">32</div>
+</div>
+<div class="cm-cell fn">
+<div class="cm-label">FN</div>
+<div class="cm-name">Unnecessary Web</div>
+<div class="cm-val red">18</div>
+</div>
+<div style="background:var(--surface);padding:0.75rem;display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:var(--text-muted);font-weight:600;">WEB</div>
+<div class="cm-cell fp">
+<div class="cm-label">FP</div>
+<div class="cm-name">Missed Web</div>
+<div class="cm-val red">0</div>
+</div>
+<div class="cm-cell tn">
+<div class="cm-label">TN</div>
+<div class="cm-name">Correct Web</div>
+<div class="cm-val green">50</div>
+</div>
+</div>
+</div>
+<div class="cm-legend">
+<h4>Legend</h4>
+<ul>
+<li><strong>TP (True Positive):</strong> SciFact query → correctly used RAG</li>
+<li><strong>TN (True Negative):</strong> NQ query → correctly used Web Search</li>
+<li><strong>FP (False Positive):</strong> NQ query → stuck in RAG, missed web fallback</li>
+<li><strong>FN (False Negative):</strong> SciFact query → unnecessarily went to web</li>
+</ul>
+<div style="margin-top:1.2rem;padding:1rem;background:var(--surface);border-radius:8px;border:1px solid var(--border);">
+<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;font-weight:600;">Key Rates</div>
+<div style="font-size:0.83rem;color:var(--text-dim);line-height:1.9;">
+          Routing Accuracy: <b style="color:var(--text)">82.0%</b><br/>
+          RAG Precision: <b style="color:var(--text)">64.0%</b> (of RAG routes, how many were correct)<br/>
+          Web Recall: <b style="color:var(--text)">100.0%</b> (of NQ queries, how many hit web)
+        </div>
+</div>
+</div>
+</div>
+<!-- ── Metric Bars ── -->
+<div class="section-title">📈 Generation Quality</div>
+<div class="bar-group">
+<div class="bar-row">
+<div class="bar-label">Faithfulness (RAG)</div>
+<div class="bar-track"><div class="bar-fill green" style="width:93.0%"></div></div>
+<div class="bar-val">0.93</div>
+</div>
+<div class="bar-row">
+<div class="bar-label">Faithfulness (Web)</div>
+<div class="bar-track"><div class="bar-fill" style="width:98.0%"></div></div>
+<div class="bar-val">0.98</div>
+</div>
+<div class="bar-row">
+<div class="bar-label">Relevancy (RAG)</div>
+<div class="bar-track"><div class="bar-fill green" style="width:99.0%"></div></div>
+<div class="bar-val">0.99</div>
+</div>
+<div class="bar-row">
+<div class="bar-label">Relevancy (Web)</div>
+<div class="bar-track"><div class="bar-fill" style="width:100.0%"></div></div>
+<div class="bar-val">1.00</div>
+</div>
+</div>
+<!-- ── Per-Query Table ── -->
+<div class="section-title">🔍 Per-Query Results</div>
+<input class="search-bar" id="searchInput" oninput="filterTable()" placeholder="🔍 Search by query or answer..."/>
+<div class="filter-tabs">
+<div class="ftab active" onclick="setFilter('all', this)">All (100)</div>
+<div class="ftab" onclick="setFilter('rag', this)">RAG Only</div>
+<div class="ftab" onclick="setFilter('web', this)">Web Only</div>
+<div class="ftab" onclick="setFilter('wrong', this)">Wrong Route ❌</div>
+<div class="ftab" onclick="setFilter('correct', this)">Correct Route ✅</div>
+</div>
+<div class="table-wrap">
+<table id="resultsTable">
+<thead>
+<tr>
+<th>#</th>
+<th>Route</th>
+<th>Query</th>
+<th>Generated Answer</th>
+<th>Reference</th>
+<th>Faith</th>
+<th>Rel</th>
+<th>Total</th>
+<th>Web Lat.</th>
+<th>Reasoning</th>
+</tr>
+</thead>
+<tbody id="tableBody">
+<tr>
+<td class="idx">1</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Emodin forms hydrogen bonds with residues involved in PGAM1 substrate binding.</td>
+<td class="answer-cell">The provided search results do not state that emodin forms hydrogen bonds with residues involved in PGAM1 substrate binding. The results mention that xanthone derivatives interact with PGAM1, while emodin is noted for forming hydrogen bonds with hTopo IIa and chitosan.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">6.66s</td>
+<td class="latency">0.72s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the provided context does not support the claim in the question and correctly summarizes the information present in the retrieved sources.</td>
+</tr>
+<tr>
+<td class="idx">2</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">what age do you need to be to buy a bb gun</td>
+<td class="answer-cell">To purchase a BB gun or airsoft gun in the United States, most states require the buyer to be at least 18 years old, though some states set the minimum age at 21. In Arkansas, it is illegal to sell an airsoft gun to anyone under 18 without parental or guardian permission.</td>
+<td class="ref-cell">18</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.01s</td>
+<td class="latency">0.89s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the provided context regarding legal purchase ages and specific state exceptions without introducing external information.</td>
+</tr>
+<tr>
+<td class="idx">3</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">how many seasons of vampire diaries r there</td>
+<td class="answer-cell">There are 8 seasons of *The Vampire Diaries*.</td>
+<td class="ref-cell">eight, 8</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.68s</td>
+<td class="latency">0.71s</td>
+<td class="reasoning-cell">The generated answer accurately states there are 8 seasons, which is consistently supported by all provided source documents.</td>
+</tr>
+<tr>
+<td class="idx">4</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who did bette midler portray in the rose</td>
+<td class="answer-cell">Bette Midler portrayed the character Mary Rose Foster (referred to as "The Rose"), a rock singer loosely based on Janis Joplin.</td>
+<td class="ref-cell">Mary Rose Foster</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.47s</td>
+<td class="latency">0.71s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the character name and the inspiration for the role as provided across the retrieved sources.</td>
+</tr>
+<tr>
+<td class="idx">5</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">CR is associated with higher methylation age.</td>
+<td class="answer-cell">No. According to the provided context, caloric restriction (CR) is associated with the attenuation of age-related methylation drift, making the methylation age appear younger than the chronological age [22038539]. Additionally, age-associated methylation changes are suppressed in calorie-restricted ...</td>
+<td class="ref-cell"></td>
+<td class="score">0.50</td>
+<td class="score">1.00</td>
+<td class="latency">2.19s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The answer correctly uses context [22038539] to refute the claim, but it includes a citation [4434951] that is not present in the provided retrieved context.</td>
+</tr>
+<tr>
+<td class="idx">6</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">when was the last time anyone was on the moon</td>
+<td class="answer-cell">The last time humans were on the Moon was during the Apollo 17 mission, which took place in December 1972. The mission landed on December 11, 1972, and concluded on December 19, 1972.</td>
+<td class="ref-cell">14 December 1972 UTC, December 1972</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">38.79s</td>
+<td class="latency">0.75s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the dates provided in the retrieved context to directly answer the user's question.</td>
+</tr>
+<tr>
+<td class="idx">7</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">miRNAs regulate a unique suite of mRNAs to maintain homeostasis in cells.</td>
+<td class="answer-cell">Yes, miRNAs regulate a suite of mRNAs to maintain cellular homeostasis. They function by directing post-transcriptional regulation of gene expression, with hundreds of miRNAs working together in each cell to regulate key processes such as development, differentiation, the cell cycle, and apoptosis. ...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.80s</td>
+<td class="latency">0.75s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the provided context to confirm the role of miRNAs in cellular and metabolic homeostasis.</td>
+</tr>
+<tr>
+<td class="idx">8</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">when was the last time oklahoma won a national championship in football</td>
+<td class="answer-cell">Oklahoma last won a national championship in football in 2000.</td>
+<td class="ref-cell">2003, 2000</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.91s</td>
+<td class="latency">0.73s</td>
+<td class="reasoning-cell">The generated answer is accurate and directly supported by the provided context, which explicitly lists 2000 as the year of Oklahoma's last national championship.</td>
+</tr>
+<tr>
+<td class="idx">9</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">53% of perinatal mortality is due to low birth weight.</td>
+<td class="answer-cell">The provided search results do not support the statement that 53% of perinatal mortality is due to low birth weight. 
+
+According to the provided sources:
+*   Infants weighing 2,500 grams or less account for two-thirds of neonatal deaths, and those weighing 1,500 grams or less account for half of neo...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.67s</td>
+<td class="latency">0.75s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the provided context does not support the claim and correctly interprets the 53% figure from the source text.</td>
+</tr>
+<tr>
+<td class="idx">10</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">where did the allies go after north africa</td>
+<td class="answer-cell">Based on the provided search results, after the victory in North Africa, the Allies invaded Sicily and the Italian mainland in the summer of 1943.</td>
+<td class="ref-cell">Italy, the Italian Campaign</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.46s</td>
+<td class="latency">0.73s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the information provided in the first source regarding the invasion of Sicily and the Italian mainland following the North African campaign.</td>
+</tr>
+<tr>
+<td class="idx">11</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Glioblastoma multiforme (GBM) is characterized by extensive invasion, rapid growth, necrosis, and angiogenesis.</td>
+<td class="answer-cell">Yes, according to the provided text, glioblastoma multiforme (GBM) is characterized by extensive invasion into normal brain parenchyma, rapid growth, necrosis, and angiogenesis [12685434].</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.09s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately confirms the statement provided in the question using direct evidence from the retrieved context [12685434].</td>
+</tr>
+<tr>
+<td class="idx">12</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Cell autonomous sex determination in somatic cells occurs in Galliformes.</td>
+<td class="answer-cell">Yes. According to the provided context, studies on chicken mixed-sex chimaeras demonstrate that avian somatic cells possess an inherent sex identity and that sexual differentiation in birds is substantively cell autonomous.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.20s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer directly addresses the question and is fully supported by the provided context, which explicitly states that sexual differentiation in birds is substantively cell autonomous.</td>
+</tr>
+<tr>
+<td class="idx">13</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who had a baby at 100 in the bible</td>
+<td class="answer-cell">According to the provided search results, Abraham was 100 years old when his son Isaac was born to him.</td>
+<td class="ref-cell">Sarah, Abraham</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.59s</td>
+<td class="latency">0.77s</td>
+<td class="reasoning-cell">The generated answer accurately identifies Abraham as the person who had a baby at 100 based on the provided context.</td>
+</tr>
+<tr>
+<td class="idx">14</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Cytosolic proteins bind to iron-responsive elements on mRNAs coding for DMT1. Cytosolic proteins bind to iron-responsive elements on mRNAs coding for proteins involved in iron uptake.</td>
+<td class="answer-cell">Yes. Cytosolic proteins (iron regulatory proteins) bind to iron-responsive elements (IREs) on mRNAs coding for DMT1 and proteins involved in iron uptake, such as the transferrin receptor.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.78s</td>
+<td class="latency">0.74s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the provided context, which confirms that cytosolic proteins (IRPs) bind to IREs on DMT1 mRNA and transferrin receptor mRNA (an iron uptake protein).</td>
+</tr>
+<tr>
+<td class="idx">15</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Incidence of heart failure increased by 10% in women since 1979.</td>
+<td class="answer-cell">The provided RAG context does not support the claim that the incidence of heart failure increased by 10% in women since 1979. According to source [19675911], the incidence of heart failure "did not change over time among men or women."</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.40s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the context contradicts the premise of the question and provides the correct citation to support this finding.</td>
+</tr>
+<tr>
+<td class="idx">16</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">what are the three fifty shades of grey books</td>
+<td class="answer-cell">The three books that comprise the original *Fifty Shades* trilogy are:
+
+*   *Fifty Shades of Grey* (2011)
+*   *Fifty Shades Darker* (2012)
+*   *Fifty Shades Freed* (2012)</td>
+<td class="ref-cell">Fifty Shades of Grey, Fifty Shades Darker, Fifty Shades Freed</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.10s</td>
+<td class="latency">0.74s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the three books of the original trilogy using information consistently provided across the retrieved sources.</td>
+</tr>
+<tr>
+<td class="idx">17</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">what is the oath that new citizens take</td>
+<td class="answer-cell">The Oath of Allegiance is the final requirement for naturalization, where a new citizen makes a sworn declaration of loyalty to the United States. The text of the oath is as follows:
+
+“I hereby declare, on oath, that I absolutely and entirely renounce and abjure all allegiance and fidelity to any fo...</td>
+<td class="ref-cell">United States Oath of Allegiance</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.56s</td>
+<td class="latency">0.68s</td>
+<td class="reasoning-cell">The generated answer accurately provides the text of the oath and its purpose as described in the provided context.</td>
+</tr>
+<tr>
+<td class="idx">18</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Active Ly49Q prevents neutrophil polarization.</td>
+<td class="answer-cell">The statement is incorrect according to the provided text. While Ly49Q inhibits neutrophil adhesion during the steady state, the context states that in the presence of inflammatory stimuli, Ly49Q is "crucial for the swift polarization of and tissue infiltration by neutrophils."</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.20s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the statement is incorrect based on the provided context, which explicitly states that Ly49Q mediates neutrophil polarization during inflammation.</td>
+</tr>
+<tr>
+<td class="idx">19</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Rapid phosphotransfer rates govern fidelity in two component systems</td>
+<td class="answer-cell">No. According to the provided text, the data indicate that preferential binding affinity is the basis for signaling fidelity in bacterial two-component systems [1225513]. While HK-RR pairs display a kinetic preference during phosphotransfer and phosphatase functions, binding affinity is identified a...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.64s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The answer accurately synthesizes the provided context to refute the premise of the question, correctly identifying binding affinity rather than phosphotransfer rates as the primary determinant of fidelity.</td>
+</tr>
+<tr>
+<td class="idx">20</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">siRNA knockdown of A20 slows tumor progression in an in vivo murine xenograft model.</td>
+<td class="answer-cell">Yes. According to the provided context, local administration of siRNA targeting A20 in a mouse xenograft tumor model significantly suppressed solid tumor growth [38355793]. Additionally, targeting A20 in human glioma xenografts resulted in increased survival of the mice [33370].</td>
+<td class="ref-cell"></td>
+<td class="score">0.50</td>
+<td class="score">1.00</td>
+<td class="latency">2.27s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The claim that targeting A20 resulted in increased survival of the mice is not supported by the provided context, which only mentions reduced tumor growth and self-renewal.</td>
+</tr>
+<tr>
+<td class="idx">21</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">The density of cytokine receptor bearing cells has no effect on the distance over which cytokines act.</td>
+<td class="answer-cell">The statement is incorrect. According to the provided RAG context, the size of the self-assembled cytokine niches—which define the spatial extent of cytokine communication—scales with the density of cytokine-consuming cells [4928282].</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.43s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The answer correctly identifies that the statement is false and provides direct evidence from the retrieved context that the density of cytokine-consuming cells determines the size of cytokine niches.</td>
+</tr>
+<tr>
+<td class="idx">22</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">when was the first australian prime minister elected</td>
+<td class="answer-cell">Based on the provided search results, Australia's first Prime Minister, Sir Edmund Barton, was not elected to the position by a party or coalition. He was appointed by Governor-General Lord Hopetoun.</td>
+<td class="ref-cell">Sir Edmund Barton, 1901</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.82s</td>
+<td class="latency">0.81s</td>
+<td class="reasoning-cell">The answer accurately reflects the provided context, which states that the first Prime Minister was appointed rather than elected to that specific role.</td>
+</tr>
+<tr>
+<td class="idx">23</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who is the lead singer of depeche mode</td>
+<td class="answer-cell">The lead singer of Depeche Mode is Dave Gahan.</td>
+<td class="ref-cell">David Gahan</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">12.90s</td>
+<td class="latency">0.77s</td>
+<td class="reasoning-cell">The generated answer accurately identifies Dave Gahan as the lead singer, which is directly supported by all provided context sources.</td>
+</tr>
+<tr>
+<td class="idx">24</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who was the actor that played ben stone on law and order</td>
+<td class="answer-cell">The actor who played Ben Stone on *Law &amp; Order* is Michael Moriarty.</td>
+<td class="ref-cell">Michael Moriarty</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.72s</td>
+<td class="latency">0.73s</td>
+<td class="reasoning-cell">The generated answer accurately identifies Michael Moriarty as the actor who played Ben Stone, which is directly supported by all provided source documents.</td>
+</tr>
+<tr>
+<td class="idx">25</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">when did taylor swift's first album release</td>
+<td class="answer-cell">Taylor Swift's self-titled debut album was released on October 24, 2006.</td>
+<td class="ref-cell">October 24, 2006, 2005</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.37s</td>
+<td class="latency">0.72s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the release date as October 24, 2006, which is consistently supported by three of the provided sources.</td>
+</tr>
+<tr>
+<td class="idx">26</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">The risk of male prisoners harming themselves is ten times that of female prisoners.</td>
+<td class="answer-cell">The statement is incorrect. According to the provided text, self-harm rates were more than ten times higher in female prisoners than in male inmates.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">1.97s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the error in the question and provides the correct information directly supported by the retrieved context.</td>
+</tr>
+<tr>
+<td class="idx">27</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who won last year's ncaa women's basketball</td>
+<td class="answer-cell">Based on the provided search results, South Carolina won the NCAA women's basketball championship in 2024.</td>
+<td class="ref-cell">South Carolina</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.72s</td>
+<td class="latency">0.77s</td>
+<td class="reasoning-cell">The generated answer accurately identifies South Carolina as the 2024 champion based on the provided NCAA history source, which correctly aligns with the 'last year' timeframe relative to the context.</td>
+</tr>
+<tr>
+<td class="idx">28</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Female carriers of the Apolipoprotein E4 (APOE4) allele have decreased risk for dementia.</td>
+<td class="answer-cell">The provided RAG context contradicts this statement. According to document [6309659], the risk of dementia associated with a longer reproductive period was most pronounced in APOE epsilon4 carriers (adjusted RR for &gt;39 reproductive years compared with &lt;34 reproductive years, 4.20 for dementia). Addi...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.74s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the context contradicts the user's premise and provides specific evidence from the retrieved documents to support this refutation.</td>
+</tr>
+<tr>
+<td class="idx">29</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">what are the ranks in the us navy</td>
+<td class="answer-cell">Based on the provided search results, the ranks of the United States Navy are divided into the following categories:
+
+*   **Enlisted:** These are further categorized into Seaman, Petty Officer, Chief Petty Officer, Senior Chief Petty Officer, and Master Chief Petty Officer. Specific examples include...</td>
+<td class="ref-cell">E-8s senior chief petty officer, E-9s master chief petty officer</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.13s</td>
+<td class="latency">0.77s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the provided context to categorize and list the U.S. Navy ranks without introducing external information.</td>
+</tr>
+<tr>
+<td class="idx">30</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">what is the maximum data rate for the 802.11a standard select one</td>
+<td class="answer-cell">The maximum data rate for the 802.11a standard is 54 Mbps.</td>
+<td class="ref-cell">54 Mbit/s</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.17s</td>
+<td class="latency">0.76s</td>
+<td class="reasoning-cell">The generated answer is accurate, concise, and directly supported by multiple sources provided in the retrieved context.</td>
+</tr>
+<tr>
+<td class="idx">31</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who plays joker in batman the dark knight</td>
+<td class="answer-cell">Heath Ledger plays the Joker in *The Dark Knight* (2008).</td>
+<td class="ref-cell">Ledger</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.92s</td>
+<td class="latency">0.79s</td>
+<td class="reasoning-cell">The generated answer accurately identifies Heath Ledger as the actor who played the Joker in The Dark Knight, which is fully supported by all provided context sources.</td>
+</tr>
+<tr>
+<td class="idx">32</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">when was the first hunger games book published</td>
+<td class="answer-cell">The first *Hunger Games* book was published on September 14, 2008.</td>
+<td class="ref-cell">September 14, 2008, 2008</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.83s</td>
+<td class="latency">0.87s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the publication date provided in the majority of the retrieved sources.</td>
+</tr>
+<tr>
+<td class="idx">33</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who does the voice of nala in the lion king</td>
+<td class="answer-cell">In the 1994 film *The Lion King*, Nala is voiced by Moira Kelly. In the 2019 live-action version, she is voiced by Beyoncé Knowles-Carter. Other voice actors for Nala in the franchise include Gabrielle Union (*The Lion Guard: Return of the Roar*) and Ana Esther Alborg.</td>
+<td class="ref-cell">Niketa Calame, Sally Dworsky, Moira Kelly, Laura Williams</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.01s</td>
+<td class="latency">0.88s</td>
+<td class="reasoning-cell">All claims in the generated answer are directly supported by the provided context, and the answer provides a comprehensive and direct response to the user's question.</td>
+</tr>
+<tr>
+<td class="idx">34</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">where does no game no life anime end</td>
+<td class="answer-cell">The *No Game No Life* anime ends after 12 episodes, which cover the events of the first three volumes of the light novel series.</td>
+<td class="ref-cell">the Elkia Federation, the sixth volume</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">3.94s</td>
+<td class="latency">0.94s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the information provided in the retrieved context regarding the anime's episode count and the corresponding light novel volume coverage.</td>
+</tr>
+<tr>
+<td class="idx">35</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Noninvasive positive pressure ventilation is not predictive of acute respiratory failure after solid organ transplantation.</td>
+<td class="answer-cell">The provided RAG context contradicts this statement. According to the study on solid organ transplantation recipients with acute respiratory failure, noninvasive ventilation (NIV) was associated with a significant reduction in the need for endotracheal intubation (20% vs 70%; P = .002), a lower rate...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.30s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the context contradicts the user's premise and provides specific, grounded evidence from the retrieved documents to support this correction.</td>
+</tr>
+<tr>
+<td class="idx">36</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">where did the butchers in the slaughterhouse cases live</td>
+<td class="answer-cell">The butchers in the Slaughterhouse Cases lived in New Orleans, Louisiana.</td>
+<td class="ref-cell">New Orleans</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.37s</td>
+<td class="latency">0.74s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the location of the butchers as New Orleans, which is explicitly supported by multiple provided sources.</td>
+</tr>
+<tr>
+<td class="idx">37</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">which state is located in the centre of india</td>
+<td class="answer-cell">Based on the provided search results, **Madhya Pradesh** is identified as the state located in the centre of India.</td>
+<td class="ref-cell">Chhattisgarh, Madhya Pradesh</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">22.16s</td>
+<td class="latency">0.73s</td>
+<td class="reasoning-cell">The answer accurately reflects the information provided in the context, which explicitly identifies Madhya Pradesh as the central state of India, while acknowledging the ambiguity regarding specific geographical points mentioned in the sources.</td>
+</tr>
+<tr>
+<td class="idx">38</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Incidence rates of cervical cancer have decreased.</td>
+<td class="answer-cell">Yes, the incidence rates of cervical cancer have decreased. According to the Finnish mass screening program data, the mean incidence of cervical carcinoma was 15.4 per 10⁵ woman-years in the early 1960s and decreased to 2.7 per 10⁵ woman-years by 1991. However, this decrease is seen almost exclusive...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.43s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer is fully supported by the provided context and directly addresses the question by confirming the decrease while providing necessary nuance regarding specific cancer types.</td>
+</tr>
+<tr>
+<td class="idx">39</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">when is the last time the vikings were in the nfc championship</td>
+<td class="answer-cell">The last time the Minnesota Vikings appeared in an NFC Championship game was on January 21, 2018, against the Philadelphia Eagles.</td>
+<td class="ref-cell">1976, 2017/18</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.24s</td>
+<td class="latency">1.42s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the date and opponent of the Vikings' last NFC Championship appearance based on the provided StatMuse source.</td>
+</tr>
+<tr>
+<td class="idx">40</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">In transgenic mice harboring green florescent protein under the control of the Sox2 promoter, less than ten percent of the cells with green florescent colocalize with cell proliferation markers.</td>
+<td class="answer-cell">The provided web search results do not contain information regarding the percentage of cells with green fluorescent protein that colocalize with cell proliferation markers in Sox2-promoter transgenic mice.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.24s</td>
+<td class="latency">2.02s</td>
+<td class="reasoning-cell">The generated answer correctly identifies that the provided context lacks the specific quantitative information requested in the question.</td>
+</tr>
+<tr>
+<td class="idx">41</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who has the power (judicial) to make decisions in courts of law</td>
+<td class="answer-cell">The judicial power of the United States is vested in one Supreme Court and in such inferior courts as Congress may from time to time ordain and establish.</td>
+<td class="ref-cell">judges</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.61s</td>
+<td class="latency">1.59s</td>
+<td class="reasoning-cell">The answer accurately identifies the entities vested with judicial power as stated in the provided Constitution Center source.</td>
+</tr>
+<tr>
+<td class="idx">42</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">when was the south asian association for regional co-operation (saarc) formed</td>
+<td class="answer-cell">The South Asian Association for Regional Cooperation (SAARC) was formed on December 8, 1985.</td>
+<td class="ref-cell">December 1985, 8 December 1985</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">22.38s</td>
+<td class="latency">1.28s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the date provided in the retrieved context and directly answers the user's question.</td>
+</tr>
+<tr>
+<td class="idx">43</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Ultrasound guidance significantly reduces the number of needle insertion attempts necessary for a given procedure.</td>
+<td class="answer-cell">Yes. According to the provided text, ultrasound imaging significantly reduced the number of insertion attempts (mean difference -0.44; 95% confidence interval -0.64 to -0.24; P&lt;0.001).</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.60s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer directly addresses the question and provides specific statistical evidence from the retrieved context to support the claim.</td>
+</tr>
+<tr>
+<td class="idx">44</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Amitriptyline is an effective treatment for chronic tension-type headaches.</td>
+<td class="answer-cell">Based on the provided RAG context, the evidence regarding the effectiveness of amitriptyline for chronic tension-type headaches is mixed:
+
+*   Some sources state that amitriptyline is an effective drug for the treatment of chronic tension-type headache and is considered a medication of first choice ...</td>
+<td class="ref-cell"></td>
+<td class="score">0.50</td>
+<td class="score">1.00</td>
+<td class="latency">2.39s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer includes a citation [24865781] that is not present in the provided retrieved context, violating the faithfulness requirement.</td>
+</tr>
+<tr>
+<td class="idx">45</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">L3MBTL2 binds to H2AK119Ub marked chromatin to form a PRC1 complex.</td>
+<td class="answer-cell">The provided RAG context does not support the statement that L3MBTL2 binds to H2AK119Ub marked chromatin to form a PRC1 complex. According to source [15635366], while the presence of L3MBTL2 at target genes is associated with H2AK119 ubiquitination, this ubiquitination is "neither dependent on L3mbt...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.39s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately evaluates the claim against the provided context and correctly identifies that the context does not support the assertion that L3MBTL2 binds to H2AK119Ub to form a PRC1 complex.</td>
+</tr>
+<tr>
+<td class="idx">46</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">when did the isle of wight become an island</td>
+<td class="answer-cell">The Isle of Wight was formed as an island at the end of the last Ice Age, approximately 8,000 to 9,000 years ago, as sea levels rose and the land of southern Britain sank.</td>
+<td class="ref-cell">During the last Ice Age</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.73s</td>
+<td class="latency">1.86s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the information provided in the first source regarding the geological formation of the island.</td>
+</tr>
+<tr>
+<td class="idx">47</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">p16INK4A degradation is  linked to an abnormal wound response caused by the microinvasive step of advanced Oral Potentially Malignant Lesions (OPMLs).</td>
+<td class="answer-cell">The provided search results do not contain information regarding p16INK4A degradation being linked to an abnormal wound response caused by the microinvasive step of advanced Oral Potentially Malignant Lesions. While the results discuss p16 as a marker in oral cancer and mention various molecular pat...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.70s</td>
+<td class="latency">2.38s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the provided context lacks the specific information requested and correctly summarizes the content that is present.</td>
+</tr>
+<tr>
+<td class="idx">48</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">The loss of the TET protein functions may have dire biological consequences, such as myeloid cancers.</td>
+<td class="answer-cell">Yes. According to the provided text, TET2 inactivation through loss-of-function mutation or deletion is a common event in myeloid and lymphoid malignancies. Furthermore, Tet2 functions as a tumor suppressor, and its haploinsufficiency initiates myeloid and lymphoid transformations.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.14s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the provided context, which confirms that TET2 loss-of-function mutations and haploinsufficiency are linked to myeloid and lymphoid malignancies.</td>
+</tr>
+<tr>
+<td class="idx">49</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Incidence rates of cervical cancer have increased due to nationwide screening programs based primarily on cytology to detect uterine cervical cancer.</td>
+<td class="answer-cell">The statement is incorrect. According to the provided search results, screening programs based on cytology and HPV testing have led to substantial reductions in cervical cancer incidence and mortality. The recent increase in cervical cancer incidence in the U.S. is associated with lower rates of cer...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.67s</td>
+<td class="latency">2.38s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the premise of the question as incorrect and provides a factually grounded correction based entirely on the provided context.</td>
+</tr>
+<tr>
+<td class="idx">50</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Exercise reduces cancer mortality rates among Chinese citizens.</td>
+<td class="answer-cell">Yes. Research indicates that physical activity and traditional Chinese exercise (TCE) are associated with a lower risk of cancer death among Chinese populations. Specifically:
+
+*   A study of 54,751 Taiwanese men found that increased physical exercise levels were associated with a significantly decr...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.87s</td>
+<td class="latency">1.48s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the provided context to support the claim that exercise is associated with reduced cancer mortality in Chinese populations.</td>
+</tr>
+<tr>
+<td class="idx">51</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Autologous transplantation of mesenchymal stem cells has better graft function than induction therapy with anti-interleukin-2 receptor antibodies.</td>
+<td class="answer-cell">Yes. According to the provided context, in patients undergoing renal transplant, the use of autologous mesenchymal stem cells (MSCs) compared with anti-IL-2 receptor antibody induction therapy resulted in better estimated renal function at 1 year [10582939].</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.72s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer directly addresses the question and is fully supported by the provided context [10582939].</td>
+</tr>
+<tr>
+<td class="idx">52</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who wrote he ain't heavy he's my brother lyrics</td>
+<td class="answer-cell">"He Ain't Heavy, He's My Brother" was written by Bobby Scott and Bob Russell.</td>
+<td class="ref-cell">Bobby Scott, Bob Russell</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.39s</td>
+<td class="latency">1.45s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the songwriters as Bobby Scott and Bob Russell, which is explicitly supported by the provided context.</td>
+</tr>
+<tr>
+<td class="idx">53</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">A single nucleotide variant the gene DGKK is strongly associated with increased risk of hypospadias.</td>
+<td class="answer-cell">Yes, the RAG context confirms that common variants in the DGKK gene are strongly associated with the risk of hypospadias. Specifically, individual genotyping of two SNPs (rs1934179 and rs7063116) in DGKK provided compelling evidence for this association across discovery, Dutch, and Swedish samples.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.85s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the information provided in the retrieved context regarding the association between DGKK variants and hypospadias.</td>
+</tr>
+<tr>
+<td class="idx">54</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">what are the colors of the netherlands flag</td>
+<td class="answer-cell">The colors of the Netherlands flag are red, white, and blue.</td>
+<td class="ref-cell">blue, white, red</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">11.06s</td>
+<td class="latency">1.71s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the colors of the Netherlands flag as red, white, and blue, which is explicitly supported by all provided context sources.</td>
+</tr>
+<tr>
+<td class="idx">55</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who plays auggie in the movie the wonder</td>
+<td class="answer-cell">Jacob Tremblay plays the character Auggie Pullman in the movie *Wonder*.</td>
+<td class="ref-cell">Jacob Tremblay</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.50s</td>
+<td class="latency">2.56s</td>
+<td class="reasoning-cell">The generated answer accurately identifies Jacob Tremblay as the actor who plays Auggie Pullman, which is fully supported by all provided source documents.</td>
+</tr>
+<tr>
+<td class="idx">56</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who is the coach for the ottawa senators</td>
+<td class="answer-cell">The current head coach of the Ottawa Senators is Travis Green.</td>
+<td class="ref-cell">Guy Boucher</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.65s</td>
+<td class="latency">1.29s</td>
+<td class="reasoning-cell">The generated answer is directly supported by the provided context, which explicitly states that Travis Green was named head coach of the Ottawa Senators in 2024.</td>
+</tr>
+<tr>
+<td class="idx">57</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Omnivores produce more trimethylamine N-oxide from dietary I-carnitine than vegans.</td>
+<td class="answer-cell">Yes, according to the provided text, omnivorous human subjects produced more trimethylamine-N-oxide (TMAO) than did vegans or vegetarians following the ingestion of L-carnitine through a microbiota-dependent mechanism [14803797].</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.57s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer directly addresses the question and is fully supported by the information provided in source [14803797].</td>
+</tr>
+<tr>
+<td class="idx">58</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Mice without IFN-γ or its receptor are resistant to EAM induced with α-MyHC/CFA.</td>
+<td class="answer-cell">The provided RAG context contradicts this statement. According to the documents, mice lacking IFN-γ or its receptor are not resistant to experimental autoimmune myocarditis (EAM); rather, they exhibit exacerbated or more severe disease.
+
+Specifically:
+*   Document [8246922] states that a lack of IFN...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.66s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the premise of the question is contradicted by the provided context and supports this with specific citations from the documents.</td>
+</tr>
+<tr>
+<td class="idx">59</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">The proliferative capacity of neural progenitors differs across species.</td>
+<td class="answer-cell">Yes, the proliferative capacity of neural progenitors differs across species. According to the provided text, primate cortical progenitors proliferate for a protracted period during which they generate early-born neurons, whereas in rodents, this expansion phase largely ceases before neurogenesis be...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.58s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer is fully supported by the provided context [16939583] and directly addresses the question regarding species-specific differences in neural progenitor proliferative capacity.</td>
+</tr>
+<tr>
+<td class="idx">60</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">In breast cancer, the loss of myoepithelial cells promotes the transition of ductal carcinoma in situ to invasive carcinoma.</td>
+<td class="answer-cell">Yes, according to the provided text, the transition of ductal carcinoma in situ (DCIS) to invasive carcinoma is promoted by the loss of myoepithelial cells. Normal myoepithelial cells inhibit this progression, and the elimination of the interaction network required for their differentiation results ...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.47s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the information provided in source [20333864] and directly confirms the premise stated in the question.</td>
+</tr>
+<tr>
+<td class="idx">61</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Tonic signaling from the scFv induces constitutive stimulation.</td>
+<td class="answer-cell">According to the provided text, tonic CAR CD3-ζ phosphorylation, which is triggered by antigen-independent clustering of CAR single-chain variable fragments (scFv), can induce early exhaustion of CAR T cells. This tonic signaling is present to varying degrees in all CARs studied, with the exception ...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.96s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that tonic signaling is triggered by scFv clustering as described in the retrieved context.</td>
+</tr>
+<tr>
+<td class="idx">62</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Intake of folic acid (FA) and vitamin B6 (VB6) reduces levels of homocysteine.</td>
+<td class="answer-cell">Based on the provided RAG context, the intake of folic acid and B vitamins (including vitamin B6) has been shown to decrease homocysteine levels. 
+
+Specifically, a randomized controlled trial involving patients with advanced chronic kidney disease or end-stage renal disease found that a daily capsul...</td>
+<td class="ref-cell"></td>
+<td class="score">0.50</td>
+<td class="score">1.00</td>
+<td class="latency">2.58s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer includes specific dosage and percentage reduction data (40 mg FA, 100 mg B6, 2 mg B12, 6.3 micromol/L reduction) that are not present in the provided retrieved context.</td>
+</tr>
+<tr>
+<td class="idx">63</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">where is lord's prayer found in bible</td>
+<td class="answer-cell">The Lord's Prayer is found in the Gospels of Matthew (6:9–13) and Luke (11:2–4).</td>
+<td class="ref-cell">in the Gospel of Luke</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.72s</td>
+<td class="latency">2.64s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the locations of the Lord's Prayer in the Bible as cited in the provided context.</td>
+</tr>
+<tr>
+<td class="idx">64</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">how many seasons of the bastard executioner are there</td>
+<td class="answer-cell">There is one season of *The Bastard Executioner*.</td>
+<td class="ref-cell">one, one season</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.04s</td>
+<td class="latency">1.35s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the information provided in the retrieved context, which confirms the show was cancelled after one season.</td>
+</tr>
+<tr>
+<td class="idx">65</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Ribosomopathies have a low degree of cell and tissue specific pathology.</td>
+<td class="answer-cell">The provided RAG context contradicts this statement. According to document [8925851], ribosomopathies are a collection of disorders where genetic abnormalities result in "specific clinical phenotypes." Furthermore, document [12486491] notes that mutations in ribosomal proteins can exhibit "tissue-sp...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.48s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the context contradicts the premise of the question and provides specific citations to support this refutation.</td>
+</tr>
+<tr>
+<td class="idx">66</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who was the ruler of england in 1616</td>
+<td class="answer-cell">The ruler of England in 1616 was King James I.</td>
+<td class="ref-cell">James I</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">9.13s</td>
+<td class="latency">1.40s</td>
+<td class="reasoning-cell">The retrieved context explicitly states that James I reigned from 1603 to 1625, which confirms he was the ruler in 1616.</td>
+</tr>
+<tr>
+<td class="idx">67</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Transcription factor EB induces transcription of pro-inflammatory cytokines in macrophages infected with Staphylococcus aureus.</td>
+<td class="answer-cell">According to the provided text, TFEB (the mammalian homolog of HLH-30) is activated in murine macrophages upon *Staphylococcus aureus* infection and is required for the proper transcriptional induction of several proinflammatory cytokines and chemokines.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.30s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the information provided in document [24177706], which explicitly states that TFEB is required for the transcriptional induction of proinflammatory cytokines in murine macrophages infected with S. aureus.</td>
+</tr>
+<tr>
+<td class="idx">68</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Normal granulomas form in the absence of TNF in Zebrafish.</td>
+<td class="answer-cell">Yes, according to the provided text, TNF is not required for tuberculous granuloma formation in zebrafish; in the absence of TNF, granuloma formation is actually accelerated.</td>
+<td class="ref-cell"></td>
+<td class="score">0.50</td>
+<td class="score">1.00</td>
+<td class="latency">2.29s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The answer correctly identifies that TNF is not required for granuloma formation, but it fails to address the 'normal' aspect of the question, as the context specifies that the granulomas formed in the absence of TNF are not normal but rather accelerated and prone to necrotic breakdown.</td>
+</tr>
+<tr>
+<td class="idx">69</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Venules have a larger lumen diameter than arterioles.</td>
+<td class="answer-cell">Yes. According to the provided sources, venules have a diameter ranging from 8–100 μm, while arterioles have a lumen diameter ranging from 0.3 mm (300 μm) down to 10 μm. Generally, veins and venules have larger diameters than their corresponding arteries and arterioles.</td>
+<td class="ref-cell"></td>
+<td class="score">0.50</td>
+<td class="score">1.00</td>
+<td class="latency">4.54s</td>
+<td class="latency">1.54s</td>
+<td class="reasoning-cell">The generated answer contradicts the provided context, which states that arterioles can have a diameter of 0.3 mm (300 μm) while venules reach up to 100 μm, making the claim that venules have larger diameters than arterioles unsupported by the specific data provided.</td>
+</tr>
+<tr>
+<td class="idx">70</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">where did the last name wallace come from</td>
+<td class="answer-cell">The surname Wallace originated from the Anglo-Norman French word *Waleis*, meaning "foreigner" or "Welshman." 
+
+Its origins are associated with the following:
+* **Geographic Roots:** The name is linked to the Scottish/English Borderlands and the former Kingdom of Strathclyde. It was introduced to Sc...</td>
+<td class="ref-cell">a Scottish surname</td>
+<td class="score">0.50</td>
+<td class="score">1.00</td>
+<td class="latency">4.82s</td>
+<td class="latency">1.27s</td>
+<td class="reasoning-cell">The generated answer includes specific historical details (Osbert Waleis, Warwickshire, 1156) that are not present in the provided retrieved context.</td>
+</tr>
+<tr>
+<td class="idx">71</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">A deficiency of vitamin B6 decreases blood levels of homocysteine.</td>
+<td class="answer-cell">No. According to the provided search results, a vitamin B6 deficiency may contribute to impaired transsulfuration and abnormal methionine metabolism, which is associated with high homocysteine levels. Conversely, B vitamins (including B6) are used to help break down homocysteine, and a deficiency in...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.46s</td>
+<td class="latency">1.33s</td>
+<td class="reasoning-cell">The generated answer accurately refutes the premise of the question using the provided context, which indicates that B6 deficiency is associated with high, not low, homocysteine levels.</td>
+</tr>
+<tr>
+<td class="idx">72</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who wrote cant get you out of my head lyrics</td>
+<td class="answer-cell">"Can't Get You Out of My Head" was written by Cathy Dennis and Rob Davis.</td>
+<td class="ref-cell">Cathy Dennis and Rob Davis, Rob Davis, Cathy Dennis</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">13.97s</td>
+<td class="latency">1.43s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the songwriters mentioned in the second source provided in the context.</td>
+</tr>
+<tr>
+<td class="idx">73</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">ethiopia flight 961 crashes in to the sea</td>
+<td class="answer-cell">On November 23, 1996, Ethiopian Airlines Flight 961 was hijacked by three Ethiopian men seeking asylum. The aircraft ran out of fuel and crashed into the Indian Ocean near the Comoros Islands, resulting in 125 fatalities out of the 175 passengers and crew on board.</td>
+<td class="ref-cell">23 November 1996</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">6.36s</td>
+<td class="latency">2.13s</td>
+<td class="reasoning-cell">The generated answer is fully supported by the provided context and directly confirms the user's query regarding the crash of Ethiopian Airlines Flight 961.</td>
+</tr>
+<tr>
+<td class="idx">74</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Folate and vitamin B12 levels influence the association between homocysteine and preeclampsia.</td>
+<td class="answer-cell">Folate and vitamin B12 levels influence the risk of pre-eclampsia by regulating homocysteine metabolism. Low levels of these vitamins are linked to higher concentrations of homocysteine in the bloodstream, which is associated with an increased risk of pre-eclampsia. Conversely, adequate levels of fo...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.68s</td>
+<td class="latency">1.43s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the provided context to explain the relationship between folate, vitamin B12, homocysteine, and pre-eclampsia risk.</td>
+</tr>
+<tr>
+<td class="idx">75</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Low expression of miR7a does represses target genes and exerts a biological function in ovaries.</td>
+<td class="answer-cell">The provided search results do not contain information regarding miR7a or its specific role in the ovaries. Therefore, the provided sources cannot confirm or deny the statement regarding miR7a.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.76s</td>
+<td class="latency">1.73s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the provided context lacks information about miR7a and correctly concludes that the statement cannot be verified using the given sources.</td>
+</tr>
+<tr>
+<td class="idx">76</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">location of the ten commandments in the bible</td>
+<td class="answer-cell">The Ten Commandments are found in the Bible in Exodus 20:2–17 and Deuteronomy 5:6–21.</td>
+<td class="ref-cell">Exodus, Deuteronomy</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.54s</td>
+<td class="latency">1.37s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the locations of the Ten Commandments as stated in the provided context sources.</td>
+</tr>
+<tr>
+<td class="idx">77</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">what is the hot coffee mod in san andreas</td>
+<td class="answer-cell">The "Hot Coffee" mod is a modification for the 2004 video game *Grand Theft Auto: San Andreas* that allows players to access a cut mini-game. This mini-game enables the protagonist, Carl Johnson, to engage in sexual intercourse with his girlfriends inside their homes. 
+
+Key facts regarding the mod i...</td>
+<td class="ref-cell">a normally inaccessible mini-game</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">6.27s</td>
+<td class="latency">2.11s</td>
+<td class="reasoning-cell">The generated answer is entirely supported by the provided context and directly answers the user's question with comprehensive detail.</td>
+</tr>
+<tr>
+<td class="idx">78</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Albendazole is used to treat lymphatic filariasis.</td>
+<td class="answer-cell">Yes, albendazole is used to treat lymphatic filariasis. It is typically administered in a two-drug combination with either diethylcarbamazine (DEC) or ivermectin.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">6.37s</td>
+<td class="latency">3.05s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the information provided in the retrieved context regarding the use of albendazole and its common combination therapies for lymphatic filariasis.</td>
+</tr>
+<tr>
+<td class="idx">79</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">British female students are bullied more than British male students.</td>
+<td class="answer-cell">The provided search results offer conflicting information regarding British students. While one source states that girls in English schools are more likely to be bullied than boys, another source notes that, in the same context, males were more likely to be victimized than females.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.56s</td>
+<td class="latency">1.38s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the conflicting information present in the provided context sources regarding the prevalence of bullying among British male and female students.</td>
+</tr>
+<tr>
+<td class="idx">80</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">EGR2 is important to myelination of the peripheral nervous system.</td>
+<td class="answer-cell">Yes, EGR2 is an essential transcription factor for peripheral nerve myelination. Schwann cells express high levels of EGR2 during postnatal myelination, and precise regulation of its transcription is fundamentally important to the control of this process.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.47s</td>
+<td class="latency">1.33s</td>
+<td class="reasoning-cell">The generated answer is fully supported by the provided context and directly confirms the importance of EGR2 in peripheral myelination.</td>
+</tr>
+<tr>
+<td class="idx">81</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who is under the mask of darth vader</td>
+<td class="answer-cell">Under the mask of Darth Vader is Anakin Skywalker. In *Return of the Jedi*, the character is portrayed by actor Sebastian Shaw when the mask is removed. Throughout the original trilogy, the man in the costume was David Prowse.</td>
+<td class="ref-cell">Anakin Skywalker</td>
+<td class="score">0.50</td>
+<td class="score">1.00</td>
+<td class="latency">5.61s</td>
+<td class="latency">2.18s</td>
+<td class="reasoning-cell">The claim that Anakin Skywalker is under the mask is not explicitly stated in the provided context, even though the context mentions Sebastian Shaw as the face of Anakin Skywalker.</td>
+</tr>
+<tr>
+<td class="idx">82</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">how many episodes are there in dragon ball z</td>
+<td class="answer-cell">There are 291 episodes in *Dragon Ball Z*.</td>
+<td class="ref-cell">291 episodes, 291</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.46s</td>
+<td class="latency">1.42s</td>
+<td class="reasoning-cell">The generated answer directly addresses the question and is fully supported by multiple sources in the provided context, which explicitly state there are 291 episodes of Dragon Ball Z.</td>
+</tr>
+<tr>
+<td class="idx">83</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">The DdrB protein from Deinococcus radiodurans is an alternative SSB.</td>
+<td class="answer-cell">The provided RAG context describes DdrB as a single-stranded DNA (ssDNA) binding protein unique to *Deinococcus* spp. that is structurally and topologically distinct from all other single-stranded binding (SSB) proteins characterized to date. It does not explicitly label DdrB as an "alternative SSB"...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.64s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The answer accurately reflects the provided context by noting that while DdrB is an ssDNA binding protein, the text distinguishes it as structurally unique rather than labeling it an 'alternative SSB' like the SsbB protein mentioned in the other context.</td>
+</tr>
+<tr>
+<td class="idx">84</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who is the girl in green day 21 guns</td>
+<td class="answer-cell">In the "21 Guns" music video, the girl portraying the character Gloria is Lisa Stelly. In the *American Idiot* musical cast version of the song, the female lead vocalist is Rebecca Naomi Jones.</td>
+<td class="ref-cell">Lisa Stelly</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.61s</td>
+<td class="latency">1.96s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the actress from the music video and the stage performer mentioned in the provided context.</td>
+</tr>
+<tr>
+<td class="idx">85</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who plays matthew on anne with an e</td>
+<td class="answer-cell">R.H. Thomson plays Matthew Cuthbert in *Anne with an E*.</td>
+<td class="ref-cell">R. H. Thomson</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.80s</td>
+<td class="latency">2.41s</td>
+<td class="reasoning-cell">The generated answer accurately identifies R.H. Thomson as the actor who plays Matthew Cuthbert, which is directly supported by all provided context sources.</td>
+</tr>
+<tr>
+<td class="idx">86</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Including pharmacists in rounding teams reduces the incidence of adverse drug events (ADEs).</td>
+<td class="answer-cell">Yes. According to the study [12258338], the presence of a pharmacist on rounds as a full member of the patient care team in a medical ICU was associated with a 66% decrease in the rate of preventable ordering adverse drug events (ADEs), falling from 10.4 to 3.5 per 1000 patient-days. In contrast, th...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">12.16s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the findings provided in the retrieved context and directly confirms the statement in the question.</td>
+</tr>
+<tr>
+<td class="idx">87</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">where was percy jackson and the olympians filmed</td>
+<td class="answer-cell">*Percy Jackson and the Olympians* was filmed in British Columbia, Canada, primarily in the Metro Vancouver area. Specific locations include:
+
+*   **Cities/Regions:** Vancouver, Burnaby, Squamish, Britannia Beach, New Westminster, Surrey, and Hope.
+*   **Specific Sites:** Mammoth Studios, Simon Frase...</td>
+<td class="ref-cell">Vancouver, Mission, British Columbia</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.46s</td>
+<td class="latency">1.30s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the filming locations provided across all four source documents without introducing external information.</td>
+</tr>
+<tr>
+<td class="idx">88</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">The risk of breast cancer among parous women decreases with placental weight of pregnancies.</td>
+<td class="answer-cell">The statement is incorrect based on the provided RAG context. According to the study findings, placental weight is positively associated with a mother's risk of breast cancer. Specifically, the risk of breast cancer was found to be increased among women whose placentas weighed between 500 and 699 g ...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.69s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the premise of the question is incorrect based on the provided context and provides specific evidence from the text to support this correction.</td>
+</tr>
+<tr>
+<td class="idx">89</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Environmental factors can influence the development of breast cancer.</td>
+<td class="answer-cell">Yes, environmental factors can influence the development of breast cancer. According to the provided context, these factors include reproductive, behavioural, and anthropometric risk factors [18340282], as well as intrauterine exposures such as birth weight [17450673, 23557241]. Other factors noted ...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.22s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the provided context to confirm the influence of environmental factors on breast cancer, with all claims directly supported by the cited documents.</td>
+</tr>
+<tr>
+<td class="idx">90</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Integrating classroom-based collaborative learning with Web-based collaborative learning offers the best class performance.</td>
+<td class="answer-cell">The provided search results do not state that integrating classroom-based collaborative learning with web-based collaborative learning offers the best class performance. While the sources discuss the benefits of collaborative learning, the use of web-based tools to support learning, and the potentia...</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">6.23s</td>
+<td class="latency">3.11s</td>
+<td class="reasoning-cell">The generated answer accurately identifies that the provided context lacks the information necessary to support the claim in the question and correctly explains why.</td>
+</tr>
+<tr>
+<td class="idx">91</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">love yourself by justin bieber is about who</td>
+<td class="answer-cell">Based on the provided search results, there is no definitive answer regarding who the song "Love Yourself" is about. While the song appears to take a swipe at an ex-partner, the identity of the subject remains a subject of speculation and investigation rather than confirmed fact.</td>
+<td class="ref-cell">Rihanna</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.95s</td>
+<td class="latency">1.38s</td>
+<td class="reasoning-cell">The answer accurately reflects the provided context, which notes that the song is speculated to be about an ex-partner but does not provide a definitive identity.</td>
+</tr>
+<tr>
+<td class="idx">92</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Anthrax spores remain deadly until affected areas are decontaminated.</td>
+<td class="answer-cell">Anthrax spores can remain dormant in the soil for years—up to five years in surface soil and indefinitely in deeper soils—depending on environmental conditions. They are resistant to adverse conditions and can remain in the environment until they find a host.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">0.50</td>
+<td class="latency">14.80s</td>
+<td class="latency">1.46s</td>
+<td class="reasoning-cell">The answer is fully supported by the context, but it fails to address the specific premise of the question regarding the necessity of decontamination to neutralize the spores.</td>
+</tr>
+<tr>
+<td class="idx">93</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who sang i ran all the way home</td>
+<td class="answer-cell">The song "Sorry (I Ran All the Way Home)" was performed by the New York-based doo-wop group The Impalas.</td>
+<td class="ref-cell">The Impalas</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.59s</td>
+<td class="latency">1.42s</td>
+<td class="reasoning-cell">The generated answer accurately identifies The Impalas as the performers of the song, which is directly supported by all provided context sources.</td>
+</tr>
+<tr>
+<td class="idx">94</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">when did the eagles win last super bowl</td>
+<td class="answer-cell">Based on the provided search results, there is conflicting information:
+
+*   One source states the Philadelphia Eagles won the 2025 edition of the Super Bowl.
+*   Another source claims the 2024 Philadelphia Eagles won their second Super Bowl title.</td>
+<td class="ref-cell">2017</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.05s</td>
+<td class="latency">1.78s</td>
+<td class="reasoning-cell">The generated answer accurately identifies the conflicting information present in the provided context and directly addresses the user's question by highlighting the lack of a definitive, consistent answer within the sources.</td>
+</tr>
+<tr>
+<td class="idx">95</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">last episode of what happens to my family</td>
+<td class="answer-cell">The final episode of *What Happens to My Family?* (Episode 53) aired on March 1, 2015. In the finale, the father, Soon Bong, returns home.</td>
+<td class="ref-cell">53</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">4.85s</td>
+<td class="latency">1.70s</td>
+<td class="reasoning-cell">The generated answer accurately extracts the episode number, air date, and plot point regarding the father from the first provided source.</td>
+</tr>
+<tr>
+<td class="idx">96</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who developed the concept of total quality management</td>
+<td class="answer-cell">Total Quality Management (TQM) was developed through the contributions of multiple thinkers rather than a single individual. Key figures identified in the provided sources include:
+
+*   **Armand Feigenbaum:** His work, *Total Quality Control*, is cited as the first work that initiated many TQM theor...</td>
+<td class="ref-cell">W. Edwards Deming</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.24s</td>
+<td class="latency">1.33s</td>
+<td class="reasoning-cell">The generated answer accurately synthesizes the information provided in the retrieved context and directly addresses the question by identifying the multiple contributors to TQM.</td>
+</tr>
+<tr>
+<td class="idx">97</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">who plays gram on the young and the restless</td>
+<td class="answer-cell">The provided search results do not contain information regarding an actor who plays a character named "Gram" on *The Young and the Restless*.</td>
+<td class="ref-cell">Max Shippee</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">5.38s</td>
+<td class="latency">1.90s</td>
+<td class="reasoning-cell">The generated answer correctly identifies that the provided context lacks the information requested and directly addresses the user's question.</td>
+</tr>
+<tr>
+<td class="idx">98</td>
+<td class="route-badge" style="color:#22c55e">
+<b>RAG</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Increased microtubule acetylation repairs interference of axonal transport caused by LRRK2 Roc-COR domain mutations.</td>
+<td class="answer-cell">Yes. According to the provided text, increasing microtubule acetylation (using deacetylase inhibitors like trichostatin A or the tubulin acetylase αTAT1) prevents the association of mutant LRRK2 with microtubules and restores axonal transport.</td>
+<td class="ref-cell"></td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">2.50s</td>
+<td class="latency">0.00s</td>
+<td class="reasoning-cell">The generated answer accurately reflects the provided context, which confirms that increasing microtubule acetylation rescues axonal transport defects caused by LRRK2 Roc-COR domain mutations.</td>
+</tr>
+<tr>
+<td class="idx">99</td>
+<td class="route-badge" style="color:#22c55e">
+<b>BOTH</b><br/><small>expected: WEB</small>
+</td>
+<td class="query-cell">i was a great islamic scholar and mathematician who died in 1131 ce</td>
+<td class="answer-cell">You are Omar Khayyam.</td>
+<td class="ref-cell">Omar Khayyam</td>
+<td class="score">1.00</td>
+<td class="score">1.00</td>
+<td class="latency">6.32s</td>
+<td class="latency">3.11s</td>
+<td class="reasoning-cell">The generated answer correctly identifies the historical figure described in the context and question, and all information is supported by the provided sources.</td>
+</tr>
+<tr>
+<td class="idx">100</td>
+<td class="route-badge" style="color:#ef4444">
+<b>BOTH</b><br/><small>expected: RAG</small>
+</td>
+<td class="query-cell">Rising temperatures caused by global warming increases risk of dengue fever transmission.</td>
+<td class="answer-cell">Yes. According to the provided research, rising temperatures caused by climate change increase the risk of dengue fever transmission by expanding mosquito activity and their geographical range. 
+
+Key findings include:
+* **Increased Incidence:** Climate change is projected to increase dengue fever ca...</td>
+<td class="ref-cell"></td>
+<td class="score">0.50</td>
+<td class="score">1.00</td>
+<td class="latency">5.07s</td>
+<td class="latency">1.48s</td>
+<td class="reasoning-cell">The claim that rising temperatures increase risk by 'expanding mosquito activity and their geographical range' is not explicitly stated in the provided context, even though the rest of the answer is well-supported.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<footer>
+  Hybrid RAG Evaluation Report · Generated 2026-07-14 11:31:10 · SciFact + Natural Questions · 100 queries
+</footer>
+<script>
+  let currentFilter = 'all';
+
+  function setFilter(f, el) {
+    currentFilter = f;
+    document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    filterTable();
+  }
+
+  function filterTable() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#tableBody tr');
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      const route = row.cells[1].textContent.toLowerCase();
+      const isCorrect = !route.includes('expected') || row.cells[1].querySelector('b').textContent === row.cells[1].querySelector('small').textContent.replace('expected: ', '');
+      
+      let show = text.includes(search);
+      if (currentFilter === 'rag') show = show && route.includes('rag');
+      if (currentFilter === 'web') show = show && (route.includes('web') || route.includes('both'));
+      if (currentFilter === 'wrong') show = show && row.cells[1].style.color === 'rgb(239, 68, 68)';
+      if (currentFilter === 'correct') show = show && row.cells[1].style.color === 'rgb(34, 197, 94)';
+      row.style.display = show ? '' : 'none';
+    });
+  }
+
+  // Color score cells dynamically
+  document.querySelectorAll('td.score').forEach(cell => {
+    const v = parseFloat(cell.textContent);
+    if (v >= 0.8) cell.classList.add('score-high');
+    else if (v >= 0.5) cell.classList.add('score-mid');
+    else cell.classList.add('score-low');
+  });
+</script>
+</body>
+</html>

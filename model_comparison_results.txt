@@ -27,3 +27,20 @@ Based on recent news coverage, here are the biggest AI stories that emerged in m
   Response: Based on CNBC's latest quote for NVIDIA (NVDA) as of June 24-26, 2026 EDT: Current stock price is approximately $195.74, representing a decrease of -3.26% (-1.64%) from the previous close.
 
 [Prompt 4] Query: 'Which movies are currently leading the worldwide box office?'
+  Time Taken: 25.11s
+  Response: Based on the search results provided, there is no clear ranking data showing which movies are leading worldwide box office as of June 25-27, 2026. The available sources point to Box Office Mojo and IMDb with month-to-date figures from mid-June but don't display actual movie titles ranked by gross revenue.
+
+For the most accurate current information on top-performing movies in 2026 worldwide box office as of June 26, I recommend checking:
+1. The official Box Office Mojo monthly rankings (https://www.boxofficemojo.com/month/to-date/2026/)
+2. IMDb's comprehensive movie list with revenue data
+3. Major film industry reports from late May-June 2026
+
+[Prompt 5] Query: 'Who won the latest NBA Finals and who was named Finals MVP?'
+  Time Taken: 8.92s
+  Response: I encountered an error formatting the response. Please try again.
+
+========================================================
+ TESTING MODEL: qwen3.5:4b
+========================================================
+
+[Prompt 1] Query: 'What are the biggest AI news stories this week?'

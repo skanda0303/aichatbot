@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+pdfplumber
 langchain
 langchain-community
 langchain-ollama
@@ -14,3 +15,15 @@ rank-bm25
 sentencepiece
 protobuf
 ddgs
+fish-audio-sdk
+composio-core
+composio-langchain
+langchain-google-genai
+gradio
+beautifulsoup4
+requests
+tavily-python
+python-multipart
+python-dotenv
+langchain-huggingface
+

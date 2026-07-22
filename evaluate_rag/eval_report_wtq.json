@@ -1,0 +1,1060 @@
+{
+  "dataset": "stanfordnlp/wikitablequestions",
+  "split": "pristine-unseen-tables",
+  "total_queries": 0,
+  "n_tables": 25,
+  "n_chunks": 240,
+  "models": {
+    "generator": "gemini-3.1-flash-lite",
+    "judge": "gemini-3.1-flash-lite"
+  },
+  "metrics": {
+    "ndcg_10": 0.7923917765835345,
+    "recall_5": 0.84,
+    "ctx_precision": 0.7829999999999998,
+    "faithfulness": 0.76,
+    "ans_relevancy": 0.92,
+    "exact_match_pct": 54.0,
+    "avg_f1": 0.5566666666666666,
+    "contains_gold_pct": 56.00000000000001
+  },
+  "latency": {
+    "avg_retrieval_k3": 1.8094050920032896,
+    "avg_generation_k3": 2.7569532159983647,
+    "avg_eval_k3": 0.8292352600011509,
+    "avg_total_k3": 5.395596052000183,
+    "avg_retrieval_k5": 1.6347044679993996,
+    "avg_generation_k5": 2.3065574359998573,
+    "avg_eval_k5": 2.6497195280005688,
+    "avg_total_k5": 6.590983732001041
+  },
+  "per_query": [
+    {
+      "idx": 1,
+      "question": "which country had the most cyclists finish within the top 10?",
+      "source_table": "csv/203-csv/733.csv",
+      "gold_answers": [
+        "Italy"
+      ],
+      "reference": "Italy",
+      "generated_k3": "Belgium",
+      "generated_k5": "Belgium",
+      "k3": {
+        "ndcg_10": 0.5105347743265789,
+        "recall_5": 0.0,
+        "ctx_prec": 0.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer is factually correct based on the provided table (Belgium has 4 riders in the top 10, while the reference answer 'Italy' is not present in the table at all)."
+      },
+      "k5": {
+        "ndcg_10": 0.5105347743265789,
+        "recall_5": 1.0,
+        "ctx_prec": 0.25,
+        "faithfulness": 0.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer identifies Belgium based on the first table, but the question refers to the second table (cycling), where Italy has the most cyclists in the top 10."
+      },
+      "ret_3": 6.491197200011811,
+      "ret_5": 1.7205237000016496,
+      "gen_3": 1.3062086999998428,
+      "gen_5": 0.66740690000006,
+      "eval_3": 1.315469299996039,
+      "eval_5": 0.9527317000029143,
+      "tot_3": 9.112878400002955,
+      "tot_5": 3.340664699993795
+    },
+    {
+      "idx": 2,
+      "question": "how many people were murdered in 1940/41?",
+      "source_table": "csv/204-csv/149.csv",
+      "gold_answers": [
+        "100,000"
+      ],
+      "reference": "100,000",
+      "generated_k3": "100,000",
+      "generated_k5": "100,000",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer accurately identifies the value for 'Murdered' in the '1940/41' column from the provided table context."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer accurately extracts the value from the provided table context for the specified category and time period."
+      },
+      "ret_3": 1.532127300000866,
+      "ret_5": 1.6413146999984747,
+      "gen_3": 0.794344000009005,
+      "gen_5": 0.8365552000032039,
+      "eval_3": 0.8958081000018865,
+      "eval_5": 0.941566800000146,
+      "tot_3": 3.222282200003974,
+      "tot_5": 3.4194397999963257
+    },
+    {
+      "idx": 3,
+      "question": "how long did it take for the new york americans to win the national cup after 1936?",
+      "source_table": "csv/203-csv/435.csv",
+      "gold_answers": [
+        "17 years"
+      ],
+      "reference": "17 years",
+      "generated_k3": "1 year",
+      "generated_k5": "17 years",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer incorrectly identifies the time elapsed as 1 year based on the table row for 1936/37, failing to account for the fact that the question asks for the time taken after 1936, which the provided context does not support as 17 years."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The answer correctly identifies the 17-year gap between the 1936/37 National Cup win and the 1953/54 National Cup win based on the provided table."
+      },
+      "ret_3": 1.7282070000073873,
+      "ret_5": 1.718047000002116,
+      "gen_3": 0.6447660999983782,
+      "gen_5": 0.7242056999966735,
+      "eval_3": 1.0407665000093402,
+      "eval_5": 0.8897412000078475,
+      "tot_3": 3.4137415000004694,
+      "tot_5": 3.331996299995808
+    },
+    {
+      "idx": 4,
+      "question": "alfie's birthday party aired on january 19. what was the airdate of the next episode?",
+      "source_table": "csv/204-csv/803.csv",
+      "gold_answers": [
+        "January 26, 1995"
+      ],
+      "reference": "January 26, 1995",
+      "generated_k3": "I cannot answer from the provided table data.",
+      "generated_k5": "January 26, 1995",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "Correctly abstained."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies the airdate of the next episode based on the provided table context."
+      },
+      "ret_3": 1.020303099998273,
+      "ret_5": 0.8938323000038508,
+      "gen_3": 0.8126687000039965,
+      "gen_5": 0.9943234999955166,
+      "eval_3": 1.8099992303177714e-05,
+      "eval_5": 0.8290859999979148,
+      "tot_3": 1.8329927000013413,
+      "tot_5": 2.7172447000048123
+    },
+    {
+      "idx": 5,
+      "question": "what is the number of 1st place finishes across all events?",
+      "source_table": "csv/204-csv/272.csv",
+      "gold_answers": [
+        "17"
+      ],
+      "reference": "17",
+      "generated_k3": "1",
+      "generated_k5": "1",
+      "k3": {
+        "ndcg_10": 0.0,
+        "recall_5": 0.0,
+        "ctx_prec": 0.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer is faithful to the provided table context (which contains only one 1st place finish) but fails to answer the question correctly because the provided context is incomplete and does not contain the full dataset required to reach the reference answer."
+      },
+      "k5": {
+        "ndcg_10": 0.0,
+        "recall_5": 0.0,
+        "ctx_prec": 0.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer is faithful to the provided table snippet but fails to account for the full context provided in the prompt, leading to an incorrect total."
+      },
+      "ret_3": 1.6111211999959778,
+      "ret_5": 1.7353401000000304,
+      "gen_3": 13.678599699996994,
+      "gen_5": 0.8216213999985484,
+      "eval_3": 1.1975146000040695,
+      "eval_5": 1.1228982000029646,
+      "tot_3": 16.487237299996195,
+      "tot_5": 3.6798623999929987
+    },
+    {
+      "idx": 6,
+      "question": "in which competition did hopley finish fist?",
+      "source_table": "csv/204-csv/483.csv",
+      "gold_answers": [
+        "World Junior Championships"
+      ],
+      "reference": "World Junior Championships",
+      "generated_k3": "European U23 Championships",
+      "generated_k5": "I cannot answer from the provided table data.",
+      "k3": {
+        "ndcg_10": 0.0,
+        "recall_5": 0.0,
+        "ctx_prec": 0.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.3333333333333333,
+        "contains_gold": false,
+        "reasoning": "The generated answer is fully supported by the provided context, which lists the European U23 Championships as a competition where the athlete finished 1st, even though the reference answer provided in the prompt is different."
+      },
+      "k5": {
+        "ndcg_10": 0.0,
+        "recall_5": 0.0,
+        "ctx_prec": 0.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "Correctly abstained."
+      },
+      "ret_3": 1.592589500010945,
+      "ret_5": 1.6700701999943703,
+      "gen_3": 0.7488011999957962,
+      "gen_5": 0.7880309000029229,
+      "eval_3": 0.9449376000120537,
+      "eval_5": 2.0399995264597237e-05,
+      "tot_3": 3.2863308000087272,
+      "tot_5": 2.4581245000008494
+    },
+    {
+      "idx": 7,
+      "question": "what is the total number of films with the language of kannada listed?",
+      "source_table": "csv/203-csv/463.csv",
+      "gold_answers": [
+        "15"
+      ],
+      "reference": "15",
+      "generated_k3": "14",
+      "generated_k5": "21",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer is a specific numerical claim that is not explicitly stated in the context, and it fails to match the reference count of 15 based on the provided rows."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer is incorrect because it counts the total number of rows provided in the context rather than filtering for the specific language 'Kannada' as requested."
+      },
+      "ret_3": 1.1953905000118539,
+      "ret_5": 1.425431199997547,
+      "gen_3": 0.808530399997835,
+      "gen_5": 0.7663813999970444,
+      "eval_3": 1.0405677999951877,
+      "eval_5": 0.8559589999931632,
+      "tot_3": 3.0444920000009006,
+      "tot_5": 3.0477738000045065
+    },
+    {
+      "idx": 8,
+      "question": "what was the number of people attending the toros mexico vs. monterrey flash game?",
+      "source_table": "csv/204-csv/875.csv",
+      "gold_answers": [
+        "363"
+      ],
+      "reference": "363",
+      "generated_k3": "363",
+      "generated_k5": "363",
+      "k3": {
+        "ndcg_10": 0.906714212607902,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies the attendance figure of 363 for the Monterrey Flash game from the provided context."
+      },
+      "k5": {
+        "ndcg_10": 0.906714212607902,
+        "recall_5": 1.0,
+        "ctx_prec": 0.8666666666666667,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies the attendance figure of 363 for the Monterrey Flash game from the provided context."
+      },
+      "ret_3": 1.7735394000046654,
+      "ret_5": 1.8591115000017453,
+      "gen_3": 0.88199049999821,
+      "gen_5": 0.7178058999998029,
+      "eval_3": 0.8562084000004688,
+      "eval_5": 21.587696100003086,
+      "tot_3": 3.51174020000326,
+      "tot_5": 24.16461530000379
+    },
+    {
+      "idx": 9,
+      "question": "what time period had no shirt sponsor?",
+      "source_table": "csv/203-csv/329.csv",
+      "gold_answers": [
+        "1982-1985"
+      ],
+      "reference": "1982-1985",
+      "generated_k3": "1982–1985",
+      "generated_k5": "1982–1985",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer accurately identifies the time period from the provided table where the 'Shirt Sponsor' column is empty."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer accurately identifies the time period from the provided table where the 'Shirt Sponsor' column is empty."
+      },
+      "ret_3": 1.8373907000059262,
+      "ret_5": 1.7794453999958932,
+      "gen_3": 0.89204749999044,
+      "gen_5": 0.7801367999927606,
+      "eval_3": 0.8576442999910796,
+      "eval_5": 1.0685983000003034,
+      "tot_3": 3.587084099999629,
+      "tot_5": 3.628182200001902
+    },
+    {
+      "idx": 10,
+      "question": "when was his first 1st place record?",
+      "source_table": "csv/203-csv/395.csv",
+      "gold_answers": [
+        "2000"
+      ],
+      "reference": "2000",
+      "generated_k3": "2000",
+      "generated_k5": "2000",
+      "k3": {
+        "ndcg_10": 0.9102003174374961,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies 2000 as the year of the first 1st place finish listed in the provided table context."
+      },
+      "k5": {
+        "ndcg_10": 0.9102003174374961,
+        "recall_5": 1.0,
+        "ctx_prec": 0.9166666666666666,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies 2000 as the year of the first 1st place finish based on the provided table context."
+      },
+      "ret_3": 1.7214245999930426,
+      "ret_5": 1.6320561000029556,
+      "gen_3": 0.8232945000054315,
+      "gen_5": 0.7753782000072533,
+      "eval_3": 0.9599822000018321,
+      "eval_5": 0.9532438000023831,
+      "tot_3": 3.5047028999979375,
+      "tot_5": 3.360679400007939
+    },
+    {
+      "idx": 11,
+      "question": "in which three consecutive years was the record the same?",
+      "source_table": "csv/204-csv/645.csv",
+      "gold_answers": [
+        "2004",
+        "2005",
+        "2006"
+      ],
+      "reference": "2004",
+      "generated_k3": "2005, 2006, 2007",
+      "generated_k5": "I cannot answer from the provided table data.",
+      "k3": {
+        "ndcg_10": 0.0,
+        "recall_5": 0.0,
+        "ctx_prec": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 0.0,
+        "exact_match": false,
+        "f1": 0.5,
+        "contains_gold": true,
+        "reasoning": "The generated answer is factually incorrect based on the provided table, which shows the record '2-4' occurred in 2005, 2006, and 2007, but the model failed to identify the correct data or context, and the reference answer provided in the prompt is also inconsistent with the table data."
+      },
+      "k5": {
+        "ndcg_10": 0.0,
+        "recall_5": 0.0,
+        "ctx_prec": 0.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "Correctly abstained."
+      },
+      "ret_3": 1.9678362999984529,
+      "ret_5": 2.031022099996335,
+      "gen_3": 1.3559606000053464,
+      "gen_5": 0.7856762000010349,
+      "eval_3": 1.0552000000025146,
+      "eval_5": 7.999988156370819e-06,
+      "tot_3": 4.378998700005468,
+      "tot_5": 2.8167076999961864
+    },
+    {
+      "idx": 12,
+      "question": "does pat or john have the highest total?",
+      "source_table": "csv/204-csv/925.csv",
+      "gold_answers": [
+        "John"
+      ],
+      "reference": "John",
+      "generated_k3": "John",
+      "generated_k5": "John",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies John O'Flynn (12) as having a higher total than Pat Baldwin (1) based on the provided table."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The answer correctly identifies John O'Flynn (12) as having a higher total than Pat Baldwin (1) based on the provided table."
+      },
+      "ret_3": 1.4434902000066359,
+      "ret_5": 1.6631080000079237,
+      "gen_3": 0.7957010999962222,
+      "gen_5": 0.8793841999868164,
+      "eval_3": 0.9771222000126727,
+      "eval_5": 0.7301546999951825,
+      "tot_3": 3.21631509999861,
+      "tot_5": 3.2726485000021057
+    },
+    {
+      "idx": 13,
+      "question": "what is the combined score of year end rankings before 2009?",
+      "source_table": "csv/203-csv/381.csv",
+      "gold_answers": [
+        "440"
+      ],
+      "reference": "440",
+      "generated_k3": "378",
+      "generated_k5": "438",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer is mathematically incorrect based on the provided context, as the sum of the rankings for 2004-2008 (129+91+68+90+62) is 440, not 378."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The model calculated the sum of the values 129, 91, 68, 90, and 62 (which equals 440) incorrectly as 438, and the retrieved context does not explicitly state the sum."
+      },
+      "ret_3": 1.9317984000081196,
+      "ret_5": 1.9893791999929817,
+      "gen_3": 0.7375054999865824,
+      "gen_5": 36.325625900004525,
+      "eval_3": 0.8594736999948509,
+      "eval_5": 1.3172556999925291,
+      "tot_3": 3.528779200001736,
+      "tot_5": 39.63226230000146
+    },
+    {
+      "idx": 14,
+      "question": "how many more ships were wrecked in lake huron than in erie?",
+      "source_table": "csv/204-csv/797.csv",
+      "gold_answers": [
+        "7"
+      ],
+      "reference": "7",
+      "generated_k3": "I cannot answer from the provided table data.",
+      "generated_k5": "1",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "Correctly abstained."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 0.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer is factually incorrect based on the provided context and fails to address the question accurately."
+      },
+      "ret_3": 1.5297045000043,
+      "ret_5": 1.3979633999988437,
+      "gen_3": 1.3122384999878705,
+      "gen_5": 0.9834461999998894,
+      "eval_3": 1.6999998479150236e-05,
+      "eval_5": 0.8336417000100482,
+      "tot_3": 2.8419623999943724,
+      "tot_5": 3.2150528999918606
+    },
+    {
+      "idx": 15,
+      "question": "what is the only character with a blank c string?",
+      "source_table": "csv/203-csv/128.csv",
+      "gold_answers": [
+        "space"
+      ],
+      "reference": "space",
+      "generated_k3": "I cannot answer from the provided table data.",
+      "generated_k5": "space",
+      "k3": {
+        "ndcg_10": 0.9609247825245575,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "Correctly abstained."
+      },
+      "k5": {
+        "ndcg_10": 0.9609247825245575,
+        "recall_5": 1.0,
+        "ctx_prec": 0.95,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The retrieved context explicitly lists 'space' as having an empty C string in row 9, and the answer correctly identifies this character."
+      },
+      "ret_3": 1.8525926000002073,
+      "ret_5": 1.595774999994319,
+      "gen_3": 0.8159801000001607,
+      "gen_5": 0.9259261000115657,
+      "eval_3": 6.700007361359894e-06,
+      "eval_5": 0.8933541000005789,
+      "tot_3": 2.6685806999885244,
+      "tot_5": 3.4150569000048563
+    },
+    {
+      "idx": 16,
+      "question": "what was the total number of points scored by the tide in the last 3 games combined.",
+      "source_table": "csv/203-csv/62.csv",
+      "gold_answers": [
+        "68"
+      ],
+      "reference": "68",
+      "generated_k3": "I cannot answer from the provided table data.",
+      "generated_k5": "I cannot answer from the provided table data.",
+      "k3": {
+        "ndcg_10": 0.0,
+        "recall_5": 0.0,
+        "ctx_prec": 0.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "Correctly abstained."
+      },
+      "k5": {
+        "ndcg_10": 0.0,
+        "recall_5": 0.0,
+        "ctx_prec": 0.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "Correctly abstained."
+      },
+      "ret_3": 1.658708500006469,
+      "ret_5": 1.417302199988626,
+      "gen_3": 0.7201107000000775,
+      "gen_5": 0.7800988000090001,
+      "eval_3": 1.9500002963468432e-05,
+      "eval_5": 1.6200006939470768e-05,
+      "tot_3": 2.3788414000009652,
+      "tot_5": 2.1974200999975437
+    },
+    {
+      "idx": 17,
+      "question": "who came immediately after sebastian porto in the race?",
+      "source_table": "csv/204-csv/892.csv",
+      "gold_answers": [
+        "Tomomi Manako"
+      ],
+      "reference": "Tomomi Manako",
+      "generated_k3": "Tomomi Manako",
+      "generated_k5": "Tomomi Manako",
+      "k3": {
+        "ndcg_10": 0.9493885684853097,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies Tomomi Manako as the rider listed in the row immediately following Sebastian Porto in the provided context."
+      },
+      "k5": {
+        "ndcg_10": 0.9493885684853097,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies Tomomi Manako as the rider who finished in position 13, immediately following Sebastian Porto in position 12, based on the provided table context."
+      },
+      "ret_3": 1.4164145999966422,
+      "ret_5": 1.7196905000018887,
+      "gen_3": 0.8549441000068327,
+      "gen_5": 0.8377311000076588,
+      "eval_3": 0.8718724999926053,
+      "eval_5": 0.954057399998419,
+      "tot_3": 3.1432339000020875,
+      "tot_5": 3.5114812000101665
+    },
+    {
+      "idx": 18,
+      "question": "what's the total number of festivals that occurred in october?",
+      "source_table": "csv/203-csv/402.csv",
+      "gold_answers": [
+        "5"
+      ],
+      "reference": "5",
+      "generated_k3": "5",
+      "generated_k5": "5",
+      "k3": {
+        "ndcg_10": 0.9447403758138471,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies the five festivals listed in the context that occur in October (London Int. Festival, Sitges, Gwacheon, Icon TLV, and Toronto After Dark)."
+      },
+      "k5": {
+        "ndcg_10": 0.9447403758138471,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The answer correctly identifies the five festivals listed in the context (London Int. Festival, Sitges, Gwacheon, Icon TLV, and Toronto After Dark) while ignoring the irrelevant football game data."
+      },
+      "ret_3": 1.575969299999997,
+      "ret_5": 1.5437657000002218,
+      "gen_3": 0.7465661000023829,
+      "gen_5": 2.3741152999864426,
+      "eval_3": 0.9064402999938466,
+      "eval_5": 18.232149600007688,
+      "tot_3": 3.2289786000037566,
+      "tot_5": 22.15003340000112
+    },
+    {
+      "idx": 19,
+      "question": "what is the only hospital to have 6 hospital beds?",
+      "source_table": "csv/203-csv/319.csv",
+      "gold_answers": [
+        "Vidant Bertie Hospital"
+      ],
+      "reference": "Vidant Bertie Hospital",
+      "generated_k3": "Vidant Bertie Hospital",
+      "generated_k5": "Vidant Bertie Hospital",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies Vidant Bertie Hospital as having 6 beds based on the provided table context, which directly answers the user's question."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies the hospital listed in the context as having 6 hospital beds."
+      },
+      "ret_3": 1.4752926000073785,
+      "ret_5": 1.487053200005903,
+      "gen_3": 0.9315739999874495,
+      "gen_5": 0.953748900006758,
+      "eval_3": 0.9126201000035508,
+      "eval_5": 0.8860065000044415,
+      "tot_3": 3.319490299996687,
+      "tot_5": 3.326811600010842
+    },
+    {
+      "idx": 20,
+      "question": "what is the total number of skoda cars sold in the year 2005?",
+      "source_table": "csv/204-csv/21.csv",
+      "gold_answers": [
+        "492,111"
+      ],
+      "reference": "492,111",
+      "generated_k3": "527,111",
+      "generated_k5": "536,511",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer is mathematically incorrect based on the provided context (233,322 + 236,698 + 22,091 = 492,111), making the claim unsupported by the data."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 1.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer is mathematically incorrect based on the provided context, as the sum of the 2005 values (233,322 + 236,698 + 22,091) is 492,111, not 536,511."
+      },
+      "ret_3": 1.6277318000065861,
+      "ret_5": 1.6273491000029026,
+      "gen_3": 0.8445032000017818,
+      "gen_5": 0.7834920000022976,
+      "eval_3": 1.1081189999968046,
+      "eval_5": 1.0419016999949235,
+      "tot_3": 3.5803564000088954,
+      "tot_5": 3.4527454000053694
+    },
+    {
+      "idx": 21,
+      "question": "what was the number of times won on grass?",
+      "source_table": "csv/204-csv/758.csv",
+      "gold_answers": [
+        "1"
+      ],
+      "reference": "1",
+      "generated_k3": "1",
+      "generated_k5": "1",
+      "k3": {
+        "ndcg_10": 0.6947702914378464,
+        "recall_5": 1.0,
+        "ctx_prec": 0.5833333333333333,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies that there was one win on grass based on row 10 of the provided context."
+      },
+      "k5": {
+        "ndcg_10": 0.6947702914378464,
+        "recall_5": 1.0,
+        "ctx_prec": 0.5833333333333333,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The retrieved context contains exactly one entry (R10) where the surface is 'Grass' and the result is 'Winner', making the answer 1 both faithful and relevant."
+      },
+      "ret_3": 1.675224699996761,
+      "ret_5": 1.654393099990557,
+      "gen_3": 0.8079816999961622,
+      "gen_5": 0.8950702000001911,
+      "eval_3": 0.9554611000057776,
+      "eval_5": 0.9704538000078173,
+      "tot_3": 3.438670599993202,
+      "tot_5": 3.519919899990782
+    },
+    {
+      "idx": 22,
+      "question": "who won the most gold medals?",
+      "source_table": "csv/204-csv/76.csv",
+      "gold_answers": [
+        "Brazil"
+      ],
+      "reference": "Brazil",
+      "generated_k3": "Brazil",
+      "generated_k5": "Brazil",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies Brazil as having the most gold medals based on the provided table context."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies Brazil as the nation with the most gold medals based on the provided table context."
+      },
+      "ret_3": 1.5323964999988675,
+      "ret_5": 1.5793371999898227,
+      "gen_3": 0.7310239000071306,
+      "gen_5": 0.8294319999986328,
+      "eval_3": 0.7674296000041068,
+      "eval_5": 0.9654275999928359,
+      "tot_3": 3.030852399999276,
+      "tot_5": 3.374199400001089
+    },
+    {
+      "idx": 23,
+      "question": "total wins by belgian riders",
+      "source_table": "csv/204-csv/417.csv",
+      "gold_answers": [
+        "7"
+      ],
+      "reference": "7",
+      "generated_k3": "7",
+      "generated_k5": "7",
+      "k3": {
+        "ndcg_10": 0.9325210919548239,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The answer correctly sums the wins for Belgian riders (Sylvain Geboers: 3, Roger De Coster: 3, Joel Robert: 1, Gaston Rahier: 0) which equals 7, and this is fully supported by the provided table."
+      },
+      "k5": {
+        "ndcg_10": 0.9325210919548239,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The answer correctly sums the wins for Belgian riders Sylvain Geboers (3), Roger De Coster (3), and Joel Robert (1) from the provided table."
+      },
+      "ret_3": 1.5538750999985496,
+      "ret_5": 1.8052009000093676,
+      "gen_3": 35.43940730000031,
+      "gen_5": 0.8094890999927884,
+      "eval_3": 1.1781951000011759,
+      "eval_5": 8.336367500000051,
+      "tot_3": 38.171481700002914,
+      "tot_5": 10.951059800005169
+    },
+    {
+      "idx": 24,
+      "question": "what yacht had the next best time (smaller time is better) than ausmaid?",
+      "source_table": "csv/203-csv/286.csv",
+      "gold_answers": [
+        "Brindabella"
+      ],
+      "reference": "Brindabella",
+      "generated_k3": "Ragamuffin",
+      "generated_k5": "Ragamuffin",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 0.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer identifies Ragamuffin, which has a slower time than Ausmaid, whereas the reference answer correctly identifies Brindabella as having the next best (faster) time."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 0.0,
+        "answer_relevancy": 0.0,
+        "exact_match": false,
+        "f1": 0.0,
+        "contains_gold": false,
+        "reasoning": "The generated answer identifies Ragamuffin, which has a slower time than Ausmaid, whereas the question asked for the yacht with the next best (faster) time, which is Brindabella."
+      },
+      "ret_3": 1.7754377000092063,
+      "ret_5": 1.5959638000058476,
+      "gen_3": 0.7352720999915618,
+      "gen_5": 0.7557620000006864,
+      "eval_3": 0.991382899999735,
+      "eval_5": 0.9205492000037339,
+      "tot_3": 3.5020958999957656,
+      "tot_5": 3.272276600007899
+    },
+    {
+      "idx": 25,
+      "question": "what match comes after gl-b-5?",
+      "source_table": "csv/204-csv/896.csv",
+      "gold_answers": [
+        "GL-B-6"
+      ],
+      "reference": "GL-B-6",
+      "generated_k3": "GL-B-6",
+      "generated_k5": "GL-B-6",
+      "k3": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies GL-B-6 as the match following GL-B-5 based on the provided table context."
+      },
+      "k5": {
+        "ndcg_10": 1.0,
+        "recall_5": 1.0,
+        "ctx_prec": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevancy": 1.0,
+        "exact_match": true,
+        "f1": 1.0,
+        "contains_gold": true,
+        "reasoning": "The generated answer correctly identifies the match following GL-B-5 based on the provided table context."
+      },
+      "ret_3": 1.7153640000033192,
+      "ret_5": 1.6851361000008183,
+      "gen_3": 0.7038101999933133,
+      "gen_5": 0.873091999994358,
+      "eval_3": 1.0386049000080675,
+      "eval_5": 0.9601030000048922,
+      "tot_3": 3.4577818999969168,
+      "tot_5": 3.518334499996854
+    }
+  ]
+}

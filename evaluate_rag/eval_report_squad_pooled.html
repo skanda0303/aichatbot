@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQuAD Pooled Eval Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0f1a; --surface: #12152b; --surface2: #1a1e38;
+      --border: #2e3258; --text: #e2e8f0; --text-muted: #94a3b8;
+      --text-dim: #64748b; --accent: #06b6d4; --accent2: #3b82f6;
+      --green: #4ade80; --red: #f87171; --yellow: #fbbf24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .header { background: linear-gradient(135deg, #111827 0%, #0d0f1a 100%); border-bottom: 1px solid var(--border); padding: 2.5rem 3rem; }
+    .header h1 { font-size: 1.7rem; font-weight: 700; }
+    .header h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .meta { color: var(--text-dim); font-size: 0.85rem; margin-top: 0.5rem; }
+    .pills { display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
+    .pill { padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.78rem; font-weight: 500; }
+    .pill-blue   { background: #1e40af33; color: #60a5fa; border: 1px solid #1e40af55; }
+    .pill-cyan   { background: #0e7490aa33; color: #22d3ee; border: 1px solid #0e749055; }
+    .pill-green  { background: #15803d33; color: #4ade80; border: 1px solid #15803d55; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 2.5rem 3rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem; position: relative; overflow: hidden; }
+    .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+    .card-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 0.5rem; }
+    .card-value { font-size: 2rem; font-weight: 700; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .card-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
+    .chart-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+    .chart-title { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .bar-wrap { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.7rem; }
+    .bar-wrap span { font-size: 0.8rem; font-weight: 600; min-width: 3rem; }
+    .bar { height: 10px; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.4s; }
+    .bar-label { font-size: 0.8rem; color: var(--text-muted); min-width: 9rem; }
+    .bar-row { display: grid; grid-template-columns: 10rem 1fr; align-items: center; gap: 1rem; margin-bottom: 0.6rem; }
+    .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.2rem; color: var(--text); }
+    .query-block { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1.2rem; overflow: hidden; transition: box-shadow 0.2s; }
+    .query-block:hover { box-shadow: 0 4px 20px rgba(6, 182, 212, 0.1); }
+    .query-header { display: flex; align-items: flex-start; gap: 0.75rem; padding: 1rem 1.2rem 0.7rem; }
+    .q-num { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 999px; flex-shrink: 0; margin-top: 2px; }
+    .q-text { font-weight: 500; font-size: 0.9rem; line-height: 1.4; }
+    .gold-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.4rem 1.2rem 0.7rem; font-size: 0.78rem; }
+    .gold-label { color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; }
+    .gold-val { color: var(--accent); font-weight: 500; }
+    .metric-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .metric-table thead { background: var(--surface2); }
+    .metric-table th { padding: 0.5rem 0.8rem; text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); }
+    .metric-table td { padding: 0.5rem 0.8rem; border-top: 1px solid var(--border); vertical-align: top; }
+    .k-badge { font-weight: 700; color: var(--accent); font-size: 0.75rem; white-space: nowrap; }
+    .answer-cell { color: var(--text-muted); max-width: 280px; font-size: 0.79rem; line-height: 1.4; }
+    .score-high { color: var(--green); font-weight: 700; }
+    .score-mid  { color: var(--yellow); font-weight: 700; }
+    .score-low  { color: var(--red); font-weight: 700; }
+    .lat { color: var(--text-dim); font-size: 0.76rem; white-space: nowrap; }
+    .search-bar { display: flex; gap: 0.8rem; margin-bottom: 1.5rem; }
+    .search-bar input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 1rem; color: var(--text); font-size: 0.85rem; outline: none; font-family: inherit; }
+    .search-bar input:focus { border-color: var(--accent); }
+    footer { text-align: center; padding: 2rem; color: var(--text-dim); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+  </style>
+</head>
+<body>
+<div class="header">
+  <h1>SQuAD v1.1 <span>Pooled-Index Evaluation</span></h1>
+  <p class="meta">Generated: 2026-07-20 01:16 &nbsp;|&nbsp; 1 queries</p>
+  <div class="pills">
+    <span class="pill pill-blue">Generator: gemini-3.1-flash-lite</span>
+    <span class="pill pill-cyan">Dataset: SQuAD v1.1 (Wikipedia Q&amp;A)</span>
+    <span class="pill pill-blue">Ragas Judge: gemini-3.1-flash-lite</span>
+    <span class="pill pill-green">Retriever: BM25 + BGE-M3 + CrossEncoder Reranker</span>
+    <span class="pill pill-green">Embeddings: bge-m3 (Local Ollama)</span>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Summary Cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">NDCG@10</div>
+      <div class="card-value">1.000</div>
+      <div class="card-sub">Ranking quality (k=3 retrieval)</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Recall@5</div>
+      <div class="card-value">100.0%</div>
+      <div class="card-sub">Gold article found in top 5</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Context Precision</div>
+      <div class="card-value">1.000</div>
+      <div class="card-sub">MAP-style relevance of retrieved docs</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Faithfulness</div>
+      <div class="card-value">1.000</div>
+      <div class="card-sub">Ragas — hallucination score</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Answer Relevancy</div>
+      <div class="card-value">0.988</div>
+      <div class="card-sub">Ragas — semantic relevance</div>
+    </div>
+  </div>
+
+  <!-- Metric Bar Chart -->
+  <div class="chart-section">
+    <div class="chart-title">Metric Overview</div>
+    <div class="bar-row"><span class="bar-label">NDCG@10</span><div class="bar-wrap"><div class="bar" style="width:100%"></div><span>1.000</span></div></div>
+    <div class="bar-row"><span class="bar-label">Recall@5</span><div class="bar-wrap"><div class="bar" style="width:100%"></div><span>1.000</span></div></div>
+    <div class="bar-row"><span class="bar-label">Context Precision</span><div class="bar-wrap"><div class="bar" style="width:100%"></div><span>1.000</span></div></div>
+    <div class="bar-row"><span class="bar-label">Faithfulness</span><div class="bar-wrap"><div class="bar" style="width:100%"></div><span>1.000</span></div></div>
+    <div class="bar-row"><span class="bar-label">Answer Relevancy</span><div class="bar-wrap"><div class="bar" style="width:98%"></div><span>0.988</span></div></div>
+  </div>
+
+  <!-- Per-Query Results -->
+  <div class="section-title">Per-Query Results (1 queries)</div>
+  <div class="search-bar">
+    <input type="text" id="search" placeholder="Search queries, answers or titles..." oninput="filterBlocks(this.value)">
+  </div>
+  <div id="query-list">
+    
+        <div class="query-block">
+          <div class="query-header">
+            <span class="q-num">#1</span>
+            <span class="q-text">Which NFL team represented the AFC at Super Bowl 50?</span>
+          </div>
+          <div class="gold-row">
+            <span class="gold-label">Gold Title</span>
+            <span class="gold-val">Super_Bowl_50</span>
+            <span class="gold-label" style="margin-left:1.5rem">Gold Answer</span>
+            <span class="gold-val">Denver Broncos</span>
+          </div>
+          <table class="metric-table">
+            <thead>
+              <tr>
+                <th>k</th><th>Generated Answer</th>
+                <th>NDCG@10</th><th>Recall@5</th><th>CtxPrec</th>
+                <th>Faith</th><th>AnsRel</th><th>Ret / Gen</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr class="k-row">
+                <td class="k-badge">k=3</td>
+                <td class="answer-cell">The Denver Broncos represented the AFC at Super Bowl 50.</td>
+                <td class="score-high">1.000</td>
+                <td class="score-high">1.000</td>
+                <td class="score-high">1.000</td>
+                <td class="score-high">1.000</td>
+                <td class="score-high">0.988</td>
+                <td class="lat">6.31s / 1.47s</td>
+              </tr>
+              <tr class="k-row">
+                <td class="k-badge">k=5</td>
+                <td class="answer-cell">The Denver Broncos represented the AFC at Super Bowl 50.</td>
+                <td class="score-high">1.000</td>
+                <td class="score-high">1.000</td>
+                <td class="score-high">1.000</td>
+                <td class="score-high">1.000</td>
+                <td class="score-high">0.988</td>
+                <td class="lat">0.70s / 5.94s</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+  </div>
+</div>
+
+<footer>
+  SQuAD v1.1 Evaluation &nbsp;|&nbsp; 2026-07-20 01:16 &nbsp;|&nbsp; Ragas v0.4.3 &nbsp;|&nbsp; BGE-M3 Local Embeddings
+</footer>
+
+<script>
+  function filterBlocks(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('.query-block').forEach(b => {
+      b.style.display = b.innerText.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+  document.querySelectorAll('.metric-table td').forEach(cell => {
+    const v = parseFloat(cell.innerText);
+    if (!isNaN(v) && v <= 1.0 && cell.innerText.length < 8) {
+      if (v >= 0.75) cell.classList.add('score-high');
+      else if (v >= 0.5) cell.classList.add('score-mid');
+      else cell.classList.add('score-low');
+    }
+  });
+</script>
+</body>
+</html>

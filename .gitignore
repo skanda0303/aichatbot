@@ -1,11 +1,14 @@
 # Databases and persistent stores
 chroma_db/
+chroma_db_multi/
+chroma_db_eval_multi/
 *.db
 *.sqlite3
 
-# PDF files
+# PDF files and docs
 *.pdf
 docs/*.pdf
+docs_multi/
 
 # Python cache files
 __pycache__/
@@ -16,3 +19,22 @@ __pycache__/
 .venv/
 venv/
 *.bin
+
+# Secrets
+.env
+
+# Deployment temp folders
+deploy_atlas/
+deploy_git_space/
+
+# Logs and test outputs
+*.log
+test_summary.txt
+eval_results.md
+agent_evaluation_results.txt
+model_comparison_results.txt
+docs_multi_hash.json
+wtq_raw/
+
+# IDE
+.vscode/
