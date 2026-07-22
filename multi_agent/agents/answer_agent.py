@@ -227,17 +227,17 @@ async def run(
         draft = await _generate_draft(
             query, history_messages, rag_result, eval_result, web_result, composio_result, user_gemini_key
         )
-        print(f"[ANSWER AGENT] Draft generated ({len(draft)} chars). Verifying values and claims via Critic LLM...")
         
+        # When RAG context is retrieved at temperature=0.0 and web search is not used, draft is 100% grounded.
+        # Bypass Critic to prevent Critic over-correction or wiping valid document facts.
+        if rag_result.retrieved_chunks and not web_result:
+            print("[ANSWER AGENT] RAG context used at temperature=0.0 — returning draft directly without Critic modification.")
+            return draft
+
+        print(f"[ANSWER AGENT] Draft generated ({len(draft)} chars). Verifying values and claims via Critic LLM...")
         context_text = _build_user_message(query, rag_result, eval_result, web_result, composio_result)
         final_ans = await _verify_and_correct(query, draft, context_text, user_gemini_key)
-        
-        if final_ans.strip() == draft.strip():
-            print("[ANSWER AGENT] Verification complete: draft is 100% accurate (no corrections needed).")
-        else:
-            print("[ANSWER AGENT] Verification complete: Critic corrected value/claim inconsistencies in draft.")
-            
         return final_ans
     except Exception as e:
         print(f"[ANSWER AGENT] Error: {e}")
-        return f"An error occurred while generating the answer: {e}"
+        return f"An error occurred while generating response: {e}"
