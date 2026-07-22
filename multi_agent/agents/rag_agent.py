@@ -57,27 +57,36 @@ def run(
     t_start = time.perf_counter()
 
     try:
-        # Use invoke_with_scores if available (RerankedRetriever), else fall back
-        if hasattr(retriever, "invoke_with_scores"):
-            docs, scores = retriever.invoke_with_scores(query)
+        # If user explicitly selected a document, isolate retrieval to that document's chunks
+        target_chunks = []
+        if selected_doc:
+            target_chunks = [
+                c for c in chunks 
+                if selected_doc.lower() in os.path.basename(str(c.metadata.get("source", ""))).lower()
+            ]
+
+        if target_chunks:
+            from multi_agent.retrieval.retriever import build_retriever
+            print(f"[RAG AGENT] Filtering retrieval strictly to selected document: '{selected_doc}' ({len(target_chunks)} chunks)")
+            target_retriever = build_retriever(target_chunks)
+            if hasattr(target_retriever, "invoke_with_scores"):
+                docs, scores = target_retriever.invoke_with_scores(query)
+            else:
+                docs   = target_retriever.invoke(query)
+                scores = [0.0] * len(docs)
         else:
-            docs   = retriever.invoke(query)
-            scores = [0.0] * len(docs)
+            if hasattr(retriever, "invoke_with_scores"):
+                docs, scores = retriever.invoke_with_scores(query)
+            else:
+                docs   = retriever.invoke(query)
+                scores = [0.0] * len(docs)
 
         elapsed = time.perf_counter() - t_start
         print(f"[RAG AGENT] Retrieved {len(docs)} docs in {elapsed:.3f}s")
 
         # Additional Jaccard deduplication pass
         docs = filter_redundant_docs(docs)
-        
-        # If user explicitly selected a document, prioritize matching docs
-        if selected_doc:
-            matched_docs = [d for d in docs if selected_doc.lower() in os.path.basename(str(d.metadata.get("source", ""))).lower()]
-            other_docs = [d for d in docs if d not in matched_docs]
-            docs = (matched_docs + other_docs)[:RETRIEVER_K]
-        else:
-            docs = docs[:RETRIEVER_K]
-            
+        docs = docs[:RETRIEVER_K]
         scores = scores[:len(docs)]
 
         chunks_text = []
