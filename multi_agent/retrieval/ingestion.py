@@ -96,29 +96,20 @@ def save_fingerprint(h: str) -> None:
 
 # Called in: multi_agent/main.py
 def load_and_index_documents() -> list[Document]:
-    """Load PDFs, detect changes via fingerprint, and index into Chroma. Returns chunk list."""
+    """Load PDFs from DOCS_DIR, clear stale Chroma cache, and index current documents. Returns chunk list."""
     os.makedirs(DOCS_DIR, exist_ok=True)
 
     if not os.listdir(DOCS_DIR):
-        print("[INFO] docs/ is empty — no documents ingested.")
+        print("[INFO] docs_multi/ is empty — clearing vectorstore.")
+        try:
+            existing_ids = vectorstore.get()["ids"]
+            if existing_ids:
+                vectorstore.delete(ids=existing_ids)
+        except Exception:
+            pass
         return []
 
-    current_fp   = get_docs_fingerprint()
-    stored_fp    = load_stored_fingerprint()
-    existing_ids = vectorstore.get()["ids"]
-
-    # Unchanged — reuse existing index
-    if current_fp == stored_fp and existing_ids:
-        print(f"[OK] Documents unchanged — reusing existing index ({len(existing_ids)} chunks).")
-        existing_data = vectorstore.get()
-        chunks: list[Document] = []
-        if existing_data and "documents" in existing_data:
-            for doc_text, metadata in zip(existing_data["documents"], existing_data["metadatas"]):
-                chunks.append(Document(page_content=doc_text, metadata=metadata))
-        return chunks
-
-    # Changed — re-index
-    print("[INFO] Document changes detected. Re-indexing...")
+    print("[INFO] Indexing documents in docs_multi...")
     raw_docs, pdf_table_docs = load_pdf_prose_and_tables(DOCS_DIR)
 
     grouped: dict = defaultdict(list)
@@ -131,24 +122,28 @@ def load_and_index_documents() -> list[Document]:
     for src, pages in sorted(grouped.items()):
         pages.sort(key=lambda x: x[0])
         full_text = " ".join(" ".join(c for _, c in pages).split())
-        merged_docs.append(Document(page_content=full_text, metadata={"source": src, "page": "0"}))
+        merged_docs.append(Document(page_content=full_text, metadata={"source": src, "page": 0}))
 
-    # 1) PDF text → chunked with sliding splitter (overlap > 0)
+    # 1) PDF text → chunked with sliding splitter
     chunks = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP,
     ).split_documents(merged_docs)
 
-    # 2) Tables embedded inside PDFs → serialized row-by-row (pdfplumber)
+    # 2) Tables embedded inside PDFs → serialized row-by-row
     chunks.extend(pdf_table_docs)
 
-    if existing_ids:
-        vectorstore.delete(ids=existing_ids)
+    try:
+        existing_ids = vectorstore.get()["ids"]
+        if existing_ids:
+            vectorstore.delete(ids=existing_ids)
+    except Exception as e:
+        print(f"[WARN] Vectorstore clear error: {e}")
 
-    # Batch document addition to prevent Ollama runner crashes on large batch requests
+    # Batch document addition
     batch_size = 32
     for i in range(0, len(chunks), batch_size):
         vectorstore.add_documents(chunks[i : i + batch_size])
-    save_fingerprint(current_fp)
+
     print(
         f"[OK] Ingested {len(chunks)} chunks "
         f"({len(merged_docs)} PDF file(s) -> {len(chunks) - len(pdf_table_docs)} text chunks, "
