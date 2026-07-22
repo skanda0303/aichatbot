@@ -133,11 +133,15 @@ def load_and_index_documents() -> list[Document]:
     chunks.extend(pdf_table_docs)
 
     try:
-        existing_ids = vectorstore.get()["ids"]
-        if existing_ids:
-            vectorstore.delete(ids=existing_ids)
-    except Exception as e:
-        print(f"[WARN] Vectorstore clear error: {e}")
+        # Purge ALL stale ChromaDB collection entries unconditionally
+        vectorstore._collection.delete(where={})
+    except Exception:
+        try:
+            existing_ids = vectorstore.get()["ids"]
+            if existing_ids:
+                vectorstore.delete(ids=existing_ids)
+        except Exception as e:
+            print(f"[WARN] Vectorstore clear error: {e}")
 
     # Batch document addition
     batch_size = 32
