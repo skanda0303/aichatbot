@@ -77,18 +77,21 @@ async def run_streaming(
 
     # ── Step 4: Conditional Web Search ────────────────────────────────────────
     web_result: WebResult | None = None
-    if not eval_result.sufficient:
+    needs_explicit_web = any(kw in query.lower() for kw in ["web search", "search web", "google search", "today's news", "live price", "latest news"])
+
+    if (not eval_result.sufficient and not rag_result.retrieved_chunks) or needs_explicit_web:
         print(
-            f"[SUPERVISOR] RAG insufficient (confidence={eval_result.confidence:.2f}). "
+            f"[SUPERVISOR] RAG returned 0 chunks or explicit web search requested. "
             "-> Invoking Web Agent..."
         )
         web_result = web_agent.run(web_query, user_tavily_key)
-        route = "rag+web"
+        route = "rag+web" if rag_result.retrieved_chunks else "web_only"
     else:
         print(
-            f"[SUPERVISOR] RAG sufficient (confidence={eval_result.confidence:.2f}). "
-            "-> Skipping Web Agent."
+            f"[SUPERVISOR] Document chunks present in Knowledge Base ({len(rag_result.retrieved_chunks)} chunks). "
+            "-> Skipping Web Agent to force strict document grounding."
         )
+        eval_result.sufficient = True
         route = "rag_only"
 
     # Log routing decision
