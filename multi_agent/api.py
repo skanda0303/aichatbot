@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
@@ -17,6 +17,8 @@ from pydantic import BaseModel
 from multi_agent.agents import supervisor_agent
 from multi_agent.config import DOCS_DIR, SERVER_PORT
 from multi_agent.memory.history import append_exchange, clear_history, get_recent_messages
+from multi_agent.retrieval.ingestion import load_and_index_documents
+from multi_agent.retrieval.retriever import build_retriever
 
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 _ALLOWED_DOCUMENT_TYPES = {".pdf", ".csv", ".txt", ".md", ".json"}
@@ -106,6 +108,38 @@ def _build_app(chunks, retriever, lifespan) -> FastAPI:
             if path.is_file() and path.suffix.lower() in _ALLOWED_DOCUMENT_TYPES
         ]
         return {"documents": documents, "indexed_chunks": len(_chunks)}
+
+    # Route: POST /api/upload (FastAPI handler)
+    @app.post("/api/upload")
+    async def upload_document(file: UploadFile = File(...)):
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in _ALLOWED_DOCUMENT_TYPES:
+            raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed: {', '.join(_ALLOWED_DOCUMENT_TYPES)}")
+        
+        root = Path(DOCS_DIR)
+        root.mkdir(parents=True, exist_ok=True)
+        dest_path = root / file.filename
+
+        contents = await file.read()
+        with open(dest_path, "wb") as f:
+            f.write(contents)
+        
+        print(f"[API] File uploaded: {file.filename}. Re-indexing documents...")
+        new_chunks = load_and_index_documents()
+        new_retriever = build_retriever(new_chunks)
+
+        nonlocal chunks, retriever
+        chunks = new_chunks
+        retriever = new_retriever
+        app.state.chunks = new_chunks
+        app.state.retriever = new_retriever
+
+        return {
+            "status": "ok",
+            "filename": file.filename,
+            "indexed_chunks": len(new_chunks),
+            "message": f"Successfully uploaded '{file.filename}' to docs_multi and re-indexed knowledge base."
+        }
 
     # Route: GET /documents/{name:path} (FastAPI handler)
     @app.get("/documents/{name:path}")

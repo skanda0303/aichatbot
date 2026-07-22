@@ -1,7 +1,8 @@
 import os
 import json
 import asyncio
-from fastapi import FastAPI, Request
+from pathlib import Path
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -75,9 +76,47 @@ async def get_documents():
                     "type": ext or "FILE",
                     "size": os.path.getsize(fpath),
                     "url": f"/docs_multi/{fname}",
-                    "download_url": f"/docs_multi/{fname}"
+                    "download_url": f"/docs_multi/{fname}?download=1"
                 })
-    return JSONResponse({"documents": docs})
+    return JSONResponse({"documents": docs, "indexed_chunks": len(chunks)})
+
+@fastapi_app.get("/docs_multi/{name:path}")
+async def serve_doc_file(name: str, download: bool = False):
+    root = Path(DOCS_DIR).resolve()
+    fpath = (root / name).resolve()
+    if root not in fpath.parents and root != fpath.parent:
+        raise HTTPException(status_code=404, detail="File not found")
+    if not fpath.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    headers = {
+        "Content-Disposition": f"{'attachment' if download else 'inline'}; filename*=UTF-8''{fpath.name}",
+    }
+    return FileResponse(fpath, headers=headers)
+
+@fastapi_app.post("/api/upload")
+async def upload_document(file: UploadFile = File(...)):
+    allowed = {".pdf", ".csv", ".txt", ".md", ".json"}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed: {', '.join(allowed)}")
+    
+    os.makedirs(DOCS_DIR, exist_ok=True)
+    dest_path = os.path.join(DOCS_DIR, file.filename)
+    contents = await file.read()
+    with open(dest_path, "wb") as f:
+        f.write(contents)
+    
+    global chunks, retriever
+    print(f"[HF SPACE] File '{file.filename}' uploaded to docs_multi/. Re-indexing...")
+    chunks = load_and_index_documents()
+    retriever = build_retriever(chunks)
+
+    return JSONResponse({
+        "status": "ok",
+        "filename": file.filename,
+        "indexed_chunks": len(chunks),
+        "message": f"Successfully uploaded '{file.filename}' to docs_multi and re-indexed knowledge base."
+    })
 
 @fastapi_app.post("/chat")
 async def chat_endpoint(req: ChatRequest, request: Request):
