@@ -330,7 +330,7 @@
       <div class="panel-title"><h2>Indexed documents</h2><div style="display:flex;align-items:center;gap:6px"><span class="count" id="doc-count">0</span><button id="upload-doc-btn" class="upload-btn" title="Upload document to docs_multi">+ Upload</button><input type="file" id="upload-doc-file" accept=".pdf,.csv,.txt,.md,.json" style="display:none" /></div></div>
       <input type="text" id="doc-search" placeholder="Filter documents..." class="doc-search-input" />
       <div class="doc-list" id="doc-list"><div class="empty">Loading indexed documents...</div></div>
-      <div class="viewer-backdrop" id="viewer-backdrop"></div><div class="viewer" id="viewer"><div class="viewer-label">Open file</div><h3 id="viewer-title">Choose a source</h3><div class="viewer-actions"><button id="viewer-open-tab" title="Open file in new browser tab">Open Tab ↗</button><button id="viewer-download">Download</button><button id="viewer-delete" class="danger-btn" title="Delete document from docs_multi">Delete 🗑</button><button id="viewer-close">Close</button></div><div class="empty" id="viewer-empty">Select a document to read it here. Files stay in this workspace.</div></div>
+      <div class="viewer-backdrop" id="viewer-backdrop"></div><div class="viewer" id="viewer"><div class="viewer-label">Open file</div><h3 id="viewer-title">Choose a source</h3><div class="viewer-actions"><button id="viewer-toggle-mode" title="Switch between Visual and Text view">📄 Text Mode</button><button id="viewer-open-tab" title="Open file in new browser tab">Open Tab ↗</button><button id="viewer-download">Download ⬇</button><button id="viewer-delete" class="danger-btn" title="Delete document from docs_multi">Delete 🗑</button><button id="viewer-close">Close ✕</button></div><div class="empty" id="viewer-empty">Select a document to read it here. Files stay in this workspace.</div></div>
     </aside>
   </main>
   <script>
@@ -397,22 +397,56 @@
       }
     }
 
-    async function selectDocument(doc, card) {
+    let currentViewMode = "visual";
+
+    async function selectDocument(doc, card, mode = null) {
       document.querySelectorAll(".doc-card").forEach(el => el.classList.remove("selected"));
       if (card) card.classList.add("selected");
       activeDocument = doc;
+      if (mode) currentViewMode = mode;
+      
+      const toggleBtn = document.getElementById("viewer-toggle-mode");
+      if (toggleBtn) {
+        toggleBtn.style.display = doc.type === "PDF" ? "inline-block" : "none";
+        toggleBtn.textContent = currentViewMode === "visual" ? "📄 Text Mode" : "👁 Visual Mode";
+      }
+
       document.getElementById("viewer-title").textContent = doc.name;
       document.getElementById("viewer-empty")?.remove();
-      document.querySelector("#viewer iframe, #viewer .pdf-viewer-wrap, #viewer .text-preview, #viewer .viewer-error")?.remove();
+      document.querySelector("#viewer iframe, #viewer object, #viewer .pdf-viewer-wrap, #viewer .text-preview, #viewer .viewer-error")?.remove();
       document.getElementById("viewer").classList.add("open");
       document.getElementById("viewer-backdrop").classList.add("open");
 
       if (doc.type === "PDF") {
+        if (currentViewMode === "text") {
+          const preview = document.createElement("div");
+          preview.className = "text-preview";
+          preview.textContent = "Extracting text content from PDF…";
+          document.getElementById("viewer").appendChild(preview);
+
+          try {
+            if (!window.pdfjsLib) throw new Error("PDF.js library not loaded");
+            const pdf = await pdfjsLib.getDocument(doc.url).promise;
+            let fullText = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const content = await page.getTextContent();
+              const pageText = content.items.map(item => item.str).join(" ");
+              fullText += `=== Page ${i} ===\n\n${pageText.trim()}\n\n`;
+            }
+            preview.textContent = fullText.trim() || "No text layer found in this PDF. Click 'Visual Mode' or 'Open Tab ↗' to view.";
+          } catch (e) {
+            preview.textContent = "Could not extract text. Click 'Open Tab ↗' or 'Download' above to read this PDF.";
+          }
+          return;
+        }
+
         const wrap = document.createElement("div");
         wrap.className = "pdf-viewer-wrap";
         wrap.innerHTML = '<div class="pdf-loading-text">Rendering PDF pages…</div>';
         document.getElementById("viewer").appendChild(wrap);
 
+        let rendered = false;
         if (window.pdfjsLib) {
           try {
             const pdf = await pdfjsLib.getDocument(doc.url).promise;
@@ -428,15 +462,13 @@
               wrap.appendChild(canvas);
               await page.render({ canvasContext: context, viewport: viewport }).promise;
             }
+            rendered = true;
           } catch (err) {
             console.warn("PDF.js render error:", err);
-            wrap.remove();
-            const frame = document.createElement("iframe");
-            frame.title = doc.name;
-            frame.src = doc.url;
-            document.getElementById("viewer").appendChild(frame);
           }
-        } else {
+        }
+
+        if (!rendered) {
           wrap.remove();
           const frame = document.createElement("iframe");
           frame.title = doc.name;
@@ -526,7 +558,7 @@
     }
 
     async function clearHistory() { await fetch("/clear", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({session_id:SESSION_ID,message:""}) }).catch(() => {}); localStorage.removeItem("atlasChats"); newChat(); }
-    document.getElementById("btn").onclick = send; document.getElementById("new-chat").onclick = newChat; document.getElementById("viewer-close").onclick = closeViewer; document.getElementById("viewer-backdrop").onclick = closeViewer; document.getElementById("viewer-download").onclick = downloadDocument; const vTab = document.getElementById("viewer-open-tab"); if (vTab) vTab.onclick = openDocumentTab; const vDel = document.getElementById("viewer-delete"); if (vDel) vDel.onclick = () => { if (activeDocument) deleteDocumentByName(activeDocument.name); }; input.onkeydown = event => { if (event.key === "Enter") send(); }; document.querySelectorAll(".suggestion").forEach(button => button.onclick = () => { input.value = button.textContent; input.focus(); }); document.getElementById("open-chats").onclick = () => document.getElementById("sidebar").classList.toggle("open"); document.getElementById("open-docs").onclick = () => document.getElementById("right-panel").classList.toggle("open");
+    document.getElementById("btn").onclick = send; document.getElementById("new-chat").onclick = newChat; document.getElementById("viewer-close").onclick = closeViewer; document.getElementById("viewer-backdrop").onclick = closeViewer; document.getElementById("viewer-download").onclick = downloadDocument; const vTab = document.getElementById("viewer-open-tab"); if (vTab) vTab.onclick = openDocumentTab; const vDel = document.getElementById("viewer-delete"); if (vDel) vDel.onclick = () => { if (activeDocument) deleteDocumentByName(activeDocument.name); }; const vMode = document.getElementById("viewer-toggle-mode"); if (vMode) vMode.onclick = () => { if (!activeDocument) return; currentViewMode = currentViewMode === "visual" ? "text" : "visual"; selectDocument(activeDocument, null, currentViewMode); }; input.onkeydown = event => { if (event.key === "Enter") send(); }; document.querySelectorAll(".suggestion").forEach(button => button.onclick = () => { input.value = button.textContent; input.focus(); }); document.getElementById("open-chats").onclick = () => document.getElementById("sidebar").classList.toggle("open"); document.getElementById("open-docs").onclick = () => document.getElementById("right-panel").classList.toggle("open");
     document.getElementById("clear-chat").onclick = async () => { if (confirm("Clear all conversations and reset chat session?")) { await clearHistory(); } };
     renderChatList(); loadDocuments();
   </script>
