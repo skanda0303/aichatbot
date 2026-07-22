@@ -117,18 +117,16 @@ def run(query: str, rag_result: RAGResult, user_gemini_key: str | None = None) -
 
     dynamic_prompt = (
         "You are a context evaluation specialist. Your ONLY job is to determine whether "
-        "the provided retrieved document chunks are sufficient to answer the user's question.\n"
+        "the provided retrieved document chunks contain the direct answer or relevant facts for the user's question.\n"
         f"Current date is {current_date_str}.\n\n"
         "You must output a JSON object with exactly these three fields:\n"
-        "  \"sufficient\"  : boolean — true if the chunks fully or substantially answer the question\n"
+        "  \"sufficient\"  : boolean — true if the chunks contain the answer or direct facts for the question\n"
         "  \"confidence\"  : float between 0.0 and 1.0\n"
         "  \"reason\"      : one concise sentence explaining your decision\n\n"
         "Evaluation criteria:\n"
-        "  - Do the chunks contain information directly relevant to the question?\n"
-        "  - Is the information complete and comprehensive enough to give a useful, accurate, and up-to-date answer?\n"
-        "  - Are there critical gaps, outdated/historical-only content, or missing facts?\n"
-        "  - For list-based queries (e.g., \"list all...\", \"what are the...\"), are ALL or most of the requested items present in the context? If the context only has a few examples or mentions a single item, it is NOT sufficient.\n\n"
-        "Be conservative: mark sufficient=false if there are gaps, if the user asks for a comprehensive list and the context only has partial examples, or if the question relates to dynamic/rapidly changing technology and the context appears outdated.\n"
+        "  - If the retrieved chunks contain a direct fact, table row, or explicit answer (e.g., 'Challenge: Weather'), mark sufficient = true.\n"
+        "  - Do NOT mark context as insufficient simply because the answer is brief, concise, or tabular. If the document states the fact, it IS sufficient.\n"
+        "  - Mark sufficient = false ONLY if the chunks have zero relevant information or completely miss the subject of the user's question.\n\n"
         "Do NOT generate an answer. Output ONLY the JSON object, nothing else."
     )
 
