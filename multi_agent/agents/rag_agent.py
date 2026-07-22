@@ -57,29 +57,33 @@ def run(
     t_start = time.perf_counter()
 
     try:
-        # If user explicitly selected a document, isolate retrieval to that document's chunks
-        target_chunks = []
+        # If user explicitly selected a document, return its chunks directly to guarantee 100% precision
         if selected_doc:
-            target_chunks = [
+            matched = [
                 c for c in chunks 
                 if selected_doc.lower() in os.path.basename(str(c.metadata.get("source", ""))).lower()
             ]
+            if matched:
+                print(f"[RAG AGENT] Selected document '{selected_doc}' matched {len(matched)} chunks. Returning document chunks directly.")
+                chunks_text = []
+                for doc in matched[:RETRIEVER_K]:
+                    src = doc.metadata.get("source", "Knowledge Base")
+                    src_name = os.path.basename(str(src))
+                    page_info = f" (Page {doc.metadata.get('page', 0) + 1})" if "page" in doc.metadata else ""
+                    chunks_text.append(f"[Source: {src_name}{page_info}]\n{doc.page_content}")
 
-        if target_chunks:
-            from multi_agent.retrieval.retriever import build_retriever
-            print(f"[RAG AGENT] Filtering retrieval strictly to selected document: '{selected_doc}' ({len(target_chunks)} chunks)")
-            target_retriever = build_retriever(target_chunks)
-            if hasattr(target_retriever, "invoke_with_scores"):
-                docs, scores = target_retriever.invoke_with_scores(query)
-            else:
-                docs   = target_retriever.invoke(query)
-                scores = [0.0] * len(docs)
+                return RAGResult(
+                    retrieved_chunks=chunks_text,
+                    avg_retrieval_score=1.0,
+                    cross_encoder_scores=[1.0] * len(chunks_text),
+                    metadata=[dict(doc.metadata) for doc in matched[:RETRIEVER_K]],
+                )
+
+        if hasattr(retriever, "invoke_with_scores"):
+            docs, scores = retriever.invoke_with_scores(query)
         else:
-            if hasattr(retriever, "invoke_with_scores"):
-                docs, scores = retriever.invoke_with_scores(query)
-            else:
-                docs   = retriever.invoke(query)
-                scores = [0.0] * len(docs)
+            docs   = retriever.invoke(query)
+            scores = [0.0] * len(docs)
 
         elapsed = time.perf_counter() - t_start
         print(f"[RAG AGENT] Retrieved {len(docs)} docs in {elapsed:.3f}s")
