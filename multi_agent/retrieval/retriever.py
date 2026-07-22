@@ -142,33 +142,24 @@ class RerankedRetriever:
         return top_docs, top_scores
 
 
-# Called in: multi_agent/main.py
+# Called in: multi_agent/main.py, multi_agent/agents/rag_agent.py
 def build_retriever(chunks: list[Document]) -> RerankedRetriever:
-    """Build hybrid retriever if chunks exist, otherwise fall back to vector-only."""
+    """Build isolated hybrid retriever for the exact specified chunks list."""
     if chunks:
         bm25_retriever = BM25Retriever.from_documents(chunks)
-        bm25_retriever.k = RETRIEVER_K
+        bm25_retriever.k = min(len(chunks), RETRIEVER_K)
 
-        vector_retriever = vectorstore.as_retriever(
-            search_type="similarity", search_kwargs={"k": RETRIEVER_K},
+        from langchain_core.vectorstores import InMemoryVectorStore
+        in_mem_store = InMemoryVectorStore.from_documents(chunks, embeddings)
+        vector_retriever = in_mem_store.as_retriever(
+            search_type="similarity", search_kwargs={"k": min(len(chunks), RETRIEVER_K)},
         )
 
         ensemble_retriever = EnsembleRetriever(
             retrievers=[bm25_retriever, vector_retriever],
             weights=[BM25_WEIGHT, VECTOR_WEIGHT],
         )
+        return RerankedRetriever(ensemble_retriever)
 
-        retriever = RerankedRetriever(
-            ensemble_retriever,
-            reranker_model_name="BAAI/bge-reranker-v2-m3",
-            top_n=RETRIEVER_K,
-        )
-        print(
-            f"[OK] Hybrid retriever initialized with BGE M3 Reranker — "
-            f"BM25 {BM25_WEIGHT} / Vector {VECTOR_WEIGHT}"
-        )
-        return retriever
-
-    retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
-    print("[WARNING] No documents found. Defaulting to vector retriever.")
-    return retriever
+    fallback_retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+    return RerankedRetriever(fallback_retriever)
