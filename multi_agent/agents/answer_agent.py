@@ -99,7 +99,14 @@ def _build_user_message(
         )
 
     context_block = "\n\n".join(parts)
-    return f"{context_block}\n\n---\n\nUser Question: {query}"
+    return (
+        f"{context_block}\n\n---\n\n"
+        f"User Question: {query}\n\n"
+        "STRICT INSTRUCTION: Answer the User Question using ONLY the facts explicitly provided in the Knowledge Base Context above. "
+        "Do NOT invent, extrapolate, or hallucinate any outside schools, institutions, market reports, or pre-trained memory. "
+        "If the Knowledge Base Context provides specific facts (e.g. 'Skanda Ramesh Bharadwaja - B.Tech CSE at RV University, CGPA: 8.92' or 'Challenge: Weather'), "
+        "report those exact facts directly."
+    )
 
 
 # Called in: multi_agent/agents/answer_agent.py (run)
@@ -128,7 +135,7 @@ async def _generate_draft(
     llm = ChatGoogleGenerativeAI(
         model=LLM_MODEL,
         google_api_key=key,
-        temperature=LLM_TEMPERATURE,
+        temperature=0.0,
     )
     response = await llm.ainvoke(messages)
     content  = response.content
@@ -160,7 +167,7 @@ async def _verify_and_correct(query: str, draft: str, context_text: str, user_ge
         llm = ChatGoogleGenerativeAI(
             model=LLM_MODEL,
             google_api_key=key,
-            temperature=LLM_TEMPERATURE,
+            temperature=0.0,
         )
         response = await llm.ainvoke(messages)
         content = response.content
