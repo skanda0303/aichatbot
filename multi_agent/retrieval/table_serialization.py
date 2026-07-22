@@ -62,7 +62,6 @@ def load_pdf_prose_and_tables(docs_dir: str) -> tuple[list[Document], list[Docum
                     prev_y1 = t_obj.bbox[3]
 
                 # 2) Extract Prose by filtering out characters inside table bounding boxes
-                # Called in: multi_agent/retrieval/table_serialization.py (load_pdf_prose_and_tables)
                 def keep_outside_tables(obj):
                     if obj.get("object_type") == "char":
                         x0, top, x1, bottom = obj["x0"], obj["top"], obj["x1"], obj["bottom"]
@@ -71,15 +70,38 @@ def load_pdf_prose_and_tables(docs_dir: str) -> tuple[list[Document], list[Docum
                                 return False
                     return True
 
-                filtered_page = page.filter(keep_outside_tables)
-                prose_text = filtered_page.extract_text()
+                prose_text = None
+                try:
+                    filtered_page = page.filter(keep_outside_tables)
+                    prose_text = filtered_page.extract_text()
+                except Exception:
+                    pass
+
+                if not prose_text or not prose_text.strip():
+                    try:
+                        prose_text = page.extract_text()
+                    except Exception:
+                        pass
+
                 if prose_text and prose_text.strip():
                     prose_docs.append(
                         Document(
-                            page_content=prose_text,
+                            page_content=prose_text.strip(),
                             metadata={"source": fpath, "page": page_idx - 1},
                         )
                     )
+
+        # Fallback: if pdfplumber produced 0 prose_docs and 0 table_docs for a PDF, try pypdf / pypdfloader
+        if not prose_docs and not table_docs:
+            try:
+                from pypdf import PdfReader
+                reader = PdfReader(fpath)
+                for idx, p in enumerate(reader.pages):
+                    txt = p.extract_text()
+                    if txt and txt.strip():
+                        prose_docs.append(Document(page_content=txt.strip(), metadata={"source": fpath, "page": idx}))
+            except Exception as e:
+                print(f"[WARN] pypdf fallback failed for {fpath}: {e}")
 
     return prose_docs, table_docs
 
