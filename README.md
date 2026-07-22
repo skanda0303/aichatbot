@@ -1,8 +1,8 @@
 ---
-title: Multi Agent RAG Chatbot
-emoji: A
-colorFrom: blue
-colorTo: indigo
+title: Atlas - Multi-Agent RAG System
+emoji: 🤖
+colorFrom: indigo
+colorTo: blue
 sdk: gradio
 sdk_version: 5.12.0
 app_file: app.py
