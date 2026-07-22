@@ -126,13 +126,18 @@ async def upload_document(file: UploadFile = File(...)):
     
     global chunks, retriever
     print(f"[HF SPACE] File '{file.filename}' uploaded to docs_multi/. Re-indexing...")
-    chunks = load_and_index_documents()
-    retriever = build_retriever(chunks)
+    try:
+        chunks = load_and_index_documents()
+        retriever = build_retriever(chunks)
+        indexed = len(chunks)
+    except Exception as e:
+        print(f"[HF SPACE] Re-index error (file still saved): {e}")
+        indexed = 0
 
     return JSONResponse({
         "status": "ok",
         "filename": file.filename,
-        "indexed_chunks": len(chunks),
+        "indexed_chunks": indexed,
         "message": f"Successfully uploaded '{file.filename}' to docs_multi and re-indexed knowledge base."
     })
 
