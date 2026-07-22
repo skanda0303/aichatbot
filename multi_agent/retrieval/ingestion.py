@@ -26,26 +26,19 @@ from multi_agent.retrieval.table_serialization import (
 )
 
 def _init_embeddings():
-    """Initialize embeddings with automatic fallback to HuggingFace BAAI/bge-m3 if Ollama is unreachable."""
-    if os.getenv("USE_HUGGINGFACE_EMBEDDINGS", "").lower() in ("1", "true"):
-        try:
-            from langchain_huggingface import HuggingFaceEmbeddings
-            print("[INFO] Loading HuggingFace BAAI/bge-m3 embeddings...")
-            return HuggingFaceEmbeddings(model_name="BAAI/bge-m3", model_kwargs={"device": "cpu"})
-        except Exception as e:
-            print(f"[WARN] HuggingFaceEmbeddings load failed: {e}")
-
+    """Initialize HuggingFace BAAI/bge-m3 embeddings directly for robust CPU execution."""
     try:
-        emb = OllamaEmbeddings(model=EMBEDDING_MODEL)
-        return emb
+        from langchain_huggingface import HuggingFaceEmbeddings
+        print("[INFO] Loading HuggingFace BAAI/bge-m3 embeddings...")
+        return HuggingFaceEmbeddings(model_name="BAAI/bge-m3", model_kwargs={"device": "cpu"})
     except Exception as e:
-        print(f"[WARN] Ollama unavailable: {e}. Falling back to HuggingFace BAAI/bge-m3 embeddings...")
+        print(f"[WARN] HuggingFaceEmbeddings load failed: {e}. Falling back to OllamaEmbeddings...")
         try:
+            from langchain_community.embeddings import OllamaEmbeddings
+            return OllamaEmbeddings(model=EMBEDDING_MODEL)
+        except Exception:
             from langchain_huggingface import HuggingFaceEmbeddings
             return HuggingFaceEmbeddings(model_name="BAAI/bge-m3", model_kwargs={"device": "cpu"})
-        except Exception as hf_e:
-            print(f"[ERROR] HuggingFace fallback failed: {hf_e}")
-            return OllamaEmbeddings(model=EMBEDDING_MODEL)
 
 
 # Embedding model & vector store
