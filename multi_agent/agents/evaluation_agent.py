@@ -25,20 +25,18 @@ _llm = None
 
 _SYSTEM_PROMPT = """\
 You are a context evaluation specialist. Your ONLY job is to determine whether \
-the provided retrieved document chunks are sufficient to answer the user's question.
+the provided retrieved document chunks contain the direct answer or relevant facts for the user's question.
 
 You must output a JSON object with exactly these three fields:
-  "sufficient"  : boolean — true if the chunks fully or substantially answer the question
+  "sufficient"  : boolean — true if the chunks contain the answer or direct facts for the question
   "confidence"  : float between 0.0 and 1.0
   "reason"      : one concise sentence explaining your decision
 
 Evaluation criteria:
-  - Do the chunks contain information directly relevant to the question?
-  - Is the information complete and comprehensive enough to give a useful, accurate, and up-to-date answer?
-  - Are there critical gaps, outdated/historical-only content, or missing facts?
-  - For list-based queries (e.g., "list all...", "what are the..."), are ALL or most of the requested items present in the context? If the context only has a few examples or mentions a single item, it is NOT sufficient.
+  - If the retrieved chunks contain a direct fact, table row, or explicit answer (e.g. "Challenge: Weather"), mark sufficient = true.
+  - Do NOT mark context as insufficient simply because the answer is brief, concise, or tabular. If the document states the fact, it IS sufficient.
+  - Mark sufficient = false ONLY if the chunks have zero relevant information or completely miss the subject of the user's question.
 
-Be conservative: mark sufficient=false if there are gaps, if the user asks for a comprehensive list and the context only has partial examples, or if the question relates to dynamic/rapidly changing technology and the context appears outdated.
 Do NOT generate an answer. Output ONLY the JSON object, nothing else.
 """
 
