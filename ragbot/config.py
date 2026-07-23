@@ -23,7 +23,7 @@ MEMORY_DB = "sqlite:///memory3.db"
 
 # Models
 EMBEDDING_MODEL   = "bge-m3"
-LLM_MODEL         = "gemini-2.5-flash-lite"
+LLM_MODEL         = "gemini-3.5-flash-lite"
 CHROMA_COLLECTION = "bge_m3"
 
 # API keys (loaded from .env)
