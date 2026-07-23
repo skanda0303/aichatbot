@@ -91,7 +91,7 @@ def get_composio_tools():
         all_raw_tools = []
         for toolkit in TOOLKITS:
             try:
-                raw_tools = composio.tools.get_raw_composio_tools(toolkits=[toolkit], limit=150)
+                raw_tools = composio.tools.get_raw_composio_tools(toolkits=[toolkit], limit=15)
                 all_raw_tools.extend(raw_tools)
                 for tool in raw_tools:
                     if hasattr(tool, "toolkit"):
