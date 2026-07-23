@@ -18,12 +18,12 @@ from multi_agent.config import COMPOSIO_API_KEY, COMPOSIO_USER_ID
 
 
 TOOLKITS = [
-    "github",
-    "googledocs",
-    "tavily",
-    "youtube",
-    "context7_mcp",
-    "hugging_face",
+    "GITHUB",
+    "GOOGLEDOCS",
+    "TAVILY",
+    "YOUTUBE",
+    "CONTEXT7_MCP",
+    "HUGGING_FACE",
 ]
 
 
@@ -40,6 +40,33 @@ def _clean_schema(schema: dict) -> None:
             for item in v:
                 if isinstance(item, dict):
                     _clean_schema(item)
+
+
+def get_connected_composio_apps() -> list[dict]:
+    """Retrieve currently active connected apps from Composio API."""
+    if not COMPOSIO_API_KEY:
+        return []
+    try:
+        composio = Composio(api_key=COMPOSIO_API_KEY, dangerously_skip_version_check=True)
+        accs = composio.connected_accounts.list()
+        connected = []
+        seen = set()
+        for item in getattr(accs, "items", []):
+            if getattr(item, "status", "").upper() == "ACTIVE":
+                slug = getattr(getattr(item, "toolkit", None), "slug", "").lower()
+                if slug and slug not in seen:
+                    seen.add(slug)
+                    connected.append({
+                        "id": getattr(item, "id", ""),
+                        "slug": slug,
+                        "name": slug.replace("_", " ").title(),
+                        "user_id": getattr(item, "user_id", ""),
+                        "updated_at": getattr(item, "updated_at", ""),
+                    })
+        return connected
+    except Exception as e:
+        print(f"[COMPOSIO] Error fetching connected apps: {e}")
+        return []
 
 
 def get_composio_tools():
@@ -60,7 +87,6 @@ def get_composio_tools():
         )
         provider = LangchainProvider()
 
-        # Discover toolkit versions up front so we can pin env vars
         version_map: dict[str, str] = {}
         all_raw_tools = []
         for toolkit in TOOLKITS:
@@ -71,16 +97,14 @@ def get_composio_tools():
                     if hasattr(tool, "toolkit"):
                         tk_slug = getattr(tool.toolkit, "slug", None)
                         if tk_slug and hasattr(tool, "version") and tk_slug not in version_map:
-                            version_map[tk_slug] = tool.version
+                            version_map[tk_slug.lower()] = tool.version
             except Exception as tk_err:
                 print(f"[COMPOSIO] Error loading toolkit '{toolkit}': {tk_err}")
 
-        # Set environment variables as expected by Composio SDK.
         for tk_slug, version in version_map.items():
             env_var = f"COMPOSIO_TOOLKIT_VERSION_{tk_slug.upper()}"
-            os.environ[env_var] = version.upper()
+            os.environ[env_var] = version
 
-        # Fix missing schema titles and prune overly complex oneOf/anyOf
         for tool in all_raw_tools:
             if not tool.input_parameters.get("title"):
                 tool.input_parameters["title"] = tool.slug
@@ -94,6 +118,8 @@ def get_composio_tools():
                                 if len(prop_schema[combiner]) > 3:
                                     prop_schema[combiner] = prop_schema[combiner][:3]
 
+        user_id = COMPOSIO_USER_ID or "pg-test-7ea14b6c-9649-420f-b5cf-fcfbdf2e9a17"
+
         def _execute(slug: str, arguments):
             prefix = slug.split("_", 1)[0].lower() if "_" in slug else ""
             ver = None
@@ -101,7 +127,7 @@ def get_composio_tools():
                 if tk_slug.startswith(prefix) or tk_slug == prefix:
                     ver = v
                     break
-            kwargs = dict(user_id=COMPOSIO_USER_ID)
+            kwargs = dict(user_id=user_id)
             if ver:
                 kwargs["version"] = ver
             return composio.tools.execute(slug, arguments, **kwargs)

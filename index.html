@@ -330,6 +330,10 @@
       <div class="panel-title"><h2>Indexed documents</h2><div style="display:flex;align-items:center;gap:6px"><span class="count" id="doc-count">0</span><button id="upload-doc-btn" class="upload-btn" title="Upload document to docs_multi">+ Upload</button><input type="file" id="upload-doc-file" accept=".pdf,.csv,.txt,.md,.json" style="display:none" /></div></div>
       <input type="text" id="doc-search" placeholder="Filter documents..." class="doc-search-input" />
       <div class="doc-list" id="doc-list"><div class="empty">Loading indexed documents...</div></div>
+      
+      <div class="panel-title" style="margin-top:24px;"><h2>Connected Composio Tools</h2><span class="count" id="composio-count">0</span></div>
+      <div class="doc-list" id="composio-tools-list"><div class="empty">Loading connected tools...</div></div>
+
       <div class="viewer-backdrop" id="viewer-backdrop"></div><div class="viewer" id="viewer"><div class="viewer-label">Open file</div><h3 id="viewer-title">Choose a source</h3><div class="viewer-actions"><button id="viewer-toggle-mode" title="Switch between Visual and Text view">📄 Text Mode</button><button id="viewer-open-tab" title="Open file in new browser tab">Open Tab ↗</button><button id="viewer-download">Download ⬇</button><button id="viewer-delete" class="danger-btn" title="Delete document from docs_multi">Delete 🗑</button><button id="viewer-close">Close ✕</button></div><div class="empty" id="viewer-empty">Select a document to read it here. Files stay in this workspace.</div></div>
     </aside>
   </main>
@@ -562,10 +566,54 @@
       };
     }
 
+    async function loadComposioTools() {
+      const container = document.getElementById("composio-tools-list");
+      const countBadge = document.getElementById("composio-count");
+      if (!container) return;
+      try {
+        const res = await fetch("/api/composio/tools");
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const tools = data.connected_tools || [];
+        if (countBadge) countBadge.textContent = tools.length;
+        if (tools.length === 0) {
+          container.innerHTML = '<div class="empty">No connected Composio tools found.</div>';
+          return;
+        }
+        container.innerHTML = "";
+        tools.forEach(tool => {
+          const card = document.createElement("div");
+          card.className = "doc-card";
+          card.style.cursor = "default";
+          const icon = document.createElement("div");
+          icon.className = "doc-icon";
+          icon.style.background = "#22c55e";
+          icon.textContent = "⚡";
+          const info = document.createElement("div");
+          info.style.flex = "1";
+          info.style.minWidth = "0";
+          const title = document.createElement("strong");
+          title.textContent = tool.name;
+          title.title = tool.name;
+          const status = document.createElement("small");
+          status.style.color = "#22c55e";
+          status.style.fontWeight = "600";
+          status.textContent = "● ACTIVE CONNECTED";
+          info.appendChild(title);
+          info.appendChild(status);
+          card.appendChild(icon);
+          card.appendChild(info);
+          container.appendChild(card);
+        });
+      } catch (err) {
+        container.innerHTML = '<div class="empty">Could not fetch connected tools.</div>';
+      }
+    }
+
     async function clearHistory() { await fetch("/clear", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({session_id:SESSION_ID,message:""}) }).catch(() => {}); localStorage.removeItem("atlasChats"); newChat(); }
     document.getElementById("btn").onclick = send; document.getElementById("new-chat").onclick = newChat; document.getElementById("viewer-close").onclick = closeViewer; document.getElementById("viewer-backdrop").onclick = closeViewer; document.getElementById("viewer-download").onclick = downloadDocument; const vTab = document.getElementById("viewer-open-tab"); if (vTab) vTab.onclick = openDocumentTab; const vDel = document.getElementById("viewer-delete"); if (vDel) vDel.onclick = () => { if (activeDocument) deleteDocumentByName(activeDocument.name); }; const vMode = document.getElementById("viewer-toggle-mode"); if (vMode) vMode.onclick = () => { if (!activeDocument) return; currentViewMode = currentViewMode === "visual" ? "text" : "visual"; selectDocument(activeDocument, null, currentViewMode); }; input.onkeydown = event => { if (event.key === "Enter") send(); }; document.querySelectorAll(".suggestion").forEach(button => button.onclick = () => { input.value = button.textContent; input.focus(); }); document.getElementById("open-chats").onclick = () => document.getElementById("sidebar").classList.toggle("open"); document.getElementById("open-docs").onclick = () => document.getElementById("right-panel").classList.toggle("open");
     document.getElementById("clear-chat").onclick = async () => { if (confirm("Clear all conversations and reset chat session?")) { await clearHistory(); } };
-    renderChatList(); loadDocuments();
+    renderChatList(); loadDocuments(); loadComposioTools();
   </script>
 </body>
 </html>

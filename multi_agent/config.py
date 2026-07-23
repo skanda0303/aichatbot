@@ -32,7 +32,7 @@ GOOGLE_API_KEY      = os.getenv("GOOGLE_API_KEY", "")
 TAVILY_API_KEY      = os.getenv("TAVILY_API_KEY", "")
 COMPOSIO_API_KEY    = os.getenv("COMPOSIO_API_KEY", "")
 # Entity ID used to scope Composio tool executions to this user's connected accounts
-COMPOSIO_USER_ID    = os.getenv("COMPOSIO_USER_ID", "")
+COMPOSIO_USER_ID    = os.getenv("COMPOSIO_USER_ID", "pg-test-7ea14b6c-9649-420f-b5cf-fcfbdf2e9a17")
 
 # Retrieval tuning — identical to ragbot/config.py
 RETRIEVER_K          = 12

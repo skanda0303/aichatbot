@@ -83,6 +83,12 @@ def list_documents():
             })
     return {"documents": docs, "indexed_chunks": len(chunks)}
 
+@fastapi_app.get("/api/composio/tools")
+def list_composio_tools():
+    from multi_agent.tools.composio_tools import get_connected_composio_apps
+    apps = get_connected_composio_apps()
+    return {"connected_tools": apps, "count": len(apps)}
+
 @fastapi_app.delete("/api/documents/{name:path}")
 def delete_document(name: str):
     root = Path(DOCS_DIR)
