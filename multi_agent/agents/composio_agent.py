@@ -18,25 +18,15 @@ from multi_agent.tools.composio_tools import get_composio_tools
 
 _SYSTEM_PROMPT = """You are an agent with access to external tools via Composio.
 You can interact with:
-- GitHub: repositories, issues, pull requests, files, code search
+- GitHub: user details, repositories, issues, pull requests, files, commits, code search
+  (e.g., use GITHUB_GET_THE_AUTHENTICATED_USER or GITHUB_LIST_REPOSITORIES_FOR_THE_AUTHENTICATED_USER to fetch the user's GitHub account and repositories)
 - Google Docs: create, read, update documents
 - Tavily: web search
 - YouTube: search videos, get transcripts, channel info
 - Context7 (MCP): search code/documentation from Context7
 - Hugging Face: models, datasets, spaces, inference
 
-Given a user query, determine which tool(s) to use and execute them.
-Return the tool outputs clearly so the Answer Agent can synthesize a response.
-
-Be precise about which tool to use:
-- GitHub: code, repos, issues, PRs, file contents
-- Google Docs: document content, creation, editing
-- Tavily: general web search
-- YouTube: video search, transcripts, metadata
-- Context7: code documentation, library docs
-- Hugging Face: models, datasets, spaces, inference
-
-Execute the appropriate tool(s) and return the results."""
+IMPORTANT: Given a user query about GitHub, Google Docs, YouTube, Context7, or Hugging Face, ALWAYS execute the appropriate Composio tool to fetch real, live data. Do NOT return generic instructions or text when tools are available."""
 
 
 def _build_agent(user_gemini_key: str | None = None):
