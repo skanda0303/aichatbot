@@ -74,13 +74,14 @@ def _build_user_message(
         parts.append(f"=== Knowledge Base Context ===\n{rag_text}")
 
     # ── Composio Tool Execution Context ──────────────────────────────────────
-    # if composio_result and composio_result.tool_outputs:
-    #     composio_sections: list[str] = []
-    #     for i, (tool_name, output) in enumerate(zip(composio_result.tool_names, composio_result.tool_outputs), 1):
-    #         output_clean = sanitize_tool_output(output)
-    #         composio_sections.append(f"[Tool {i}: {tool_name}]\n{output_clean}")
-    #     composio_text = "\n\n".join(composio_sections)
-    #     parts.append(f"=== Composio Tool Execution Context ===\n{composio_text}")
+    if composio_result and composio_result.tool_outputs:
+        composio_sections: list[str] = []
+        for i, output in enumerate(composio_result.tool_outputs, 1):
+            tool_name = composio_result.tool_names[i-1] if i-1 < len(composio_result.tool_names) else "External Tool"
+            output_clean = sanitize_tool_output(str(output))
+            composio_sections.append(f"[Tool {i}: {tool_name}]\n{output_clean}")
+        composio_text = "\n\n".join(composio_sections)
+        parts.append(f"=== Composio Tool Execution Context ===\n{composio_text}")
 
     # ── Web context (only when web agent ran) ─────────────────────────────────
     if web_result and web_result.web_context:
@@ -102,10 +103,8 @@ def _build_user_message(
     return (
         f"{context_block}\n\n---\n\n"
         f"User Question: {query}\n\n"
-        "STRICT INSTRUCTION: Answer the User Question using ONLY the facts explicitly provided in the Knowledge Base Context above. "
-        "Do NOT invent, extrapolate, or hallucinate any outside schools, institutions, market reports, or pre-trained memory. "
-        "If the Knowledge Base Context provides specific facts (e.g. 'Skanda Ramesh Bharadwaja - B.Tech CSE at RV University, CGPA: 8.92' or 'Challenge: Weather'), "
-        "report those exact facts directly."
+        "INSTRUCTION: Answer the User Question using the provided Knowledge Base Context, Composio Tool Execution Context, or Web Search Context above. "
+        "Do NOT invent or extrapolate facts not present in the provided contexts."
     )
 
 
@@ -228,10 +227,8 @@ async def run(
             query, history_messages, rag_result, eval_result, web_result, composio_result, user_gemini_key
         )
         
-        # When RAG context is retrieved at temperature=0.0 and web search is not used, draft is 100% grounded.
-        # Bypass Critic to prevent Critic over-correction or wiping valid document facts.
-        if rag_result.retrieved_chunks and not web_result:
-            print("[ANSWER AGENT] RAG context used at temperature=0.0 — returning draft directly without Critic modification.")
+        if (rag_result.retrieved_chunks or (composio_result and composio_result.tool_outputs)) and not web_result:
+            print("[ANSWER AGENT] RAG or Composio tool context used — returning draft directly without Critic modification.")
             return draft
 
         print(f"[ANSWER AGENT] Draft generated ({len(draft)} chars). Verifying values and claims via Critic LLM...")
