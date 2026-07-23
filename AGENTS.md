@@ -32,9 +32,12 @@ graph TD
 
 ---
 
-## 🛠️ API & Interface Endpoints
+## ⚡ Mandatory Agent Superpowers Protocol
 
-* `GET /` — Serves custom web workspace (`index.html`).
-* `POST /chat` — Handles streaming queries via Server-Sent Events (SSE).
-* `GET /api/documents` — Lists indexed documents and metadata.
-* `POST /clear` — Resets conversation history session.
+* **Rule**: Always check and invoke relevant process/implementation skills BEFORE taking actions, writing code, or asking clarifying questions.
+* **Skill Priority**:
+  1. Process skills (`brainstorming`, `writing-plans`, `executing-plans`, `systematic-debugging`) set the architecture and approach.
+  2. Domain skills (`ui-ux-pro-max`, `verification-before-completion`, `test-driven-development`) implement and verify.
+* **Task Artifacts**: Multi-step workflows maintain active markdown task artifacts (`task.md`) updated dynamically (`[ ]` ➔ `[/]` ➔ `[x]`).
+* **Subagent Support**: Parallel or independent tasks use `invoke_subagent` delegation.
+
