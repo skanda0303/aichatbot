@@ -29,8 +29,8 @@ CHROMA_COLLECTION = "bge_m3_multi"                              # <-- separate c
 
 # API keys (loaded from .env)
 GOOGLE_API_KEY      = os.getenv("GOOGLE_API_KEY", "")
-TAVILY_API_KEY      = os.getenv("TAVILY_API_KEY", "")
-COMPOSIO_API_KEY    = os.getenv("COMPOSIO_API_KEY", "")
+TAVILY_API_KEY      = os.getenv("TAVILY_API_KEY", "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")
+COMPOSIO_API_KEY    = os.getenv("COMPOSIO_API_KEY", "ak_4YYYMLxlaZMR90975Ikk")
 # Entity ID used to scope Composio tool executions to this user's connected accounts
 COMPOSIO_USER_ID    = os.getenv("COMPOSIO_USER_ID", "pg-test-7ea14b6c-9649-420f-b5cf-fcfbdf2e9a17")
 
