@@ -24,7 +24,7 @@ MEMORY_DB = f"sqlite:///{os.path.join(_project_root, 'memory_multi.db')}"
 
 # Models — identical to ragbot/config.py
 EMBEDDING_MODEL   = "bge-m3"
-LLM_MODEL         = "gemini-3.1-flash-lite"
+LLM_MODEL         = "gemini-2.5-flash-lite"
 CHROMA_COLLECTION = "bge_m3_multi"                              # <-- separate collection name
 
 # API keys (loaded from .env)

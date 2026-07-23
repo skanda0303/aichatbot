@@ -19,7 +19,7 @@ CHROMA_DB = os.path.join(_project_root, "chroma_db_eval_multi")
 
 # ── Models (identical to multi_agent/config.py) ───────────────────────────────
 EMBEDDING_MODEL   = "bge-m3"
-LLM_MODEL         = "gemini-3.1-flash-lite"
+LLM_MODEL         = "gemini-2.5-flash-lite"
 CHROMA_COLLECTION = "bge_m3_eval_multi"
 
 # ── API keys ──────────────────────────────────────────────────────────────────

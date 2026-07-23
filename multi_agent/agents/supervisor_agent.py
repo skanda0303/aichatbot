@@ -23,24 +23,23 @@ from collections.abc import AsyncGenerator
 
 from langchain_core.documents import Document
 
-from multi_agent.agents import rag_agent, evaluation_agent, web_agent, answer_agent, query_rewriter_agent
+from multi_agent.agents import rag_agent, evaluation_agent, web_agent, answer_agent, query_rewriter_agent, composio_agent
 from multi_agent.evaluation.routing_logger import log_routing_decision
 from multi_agent.models.schemas import RAGResult, EvalResult, WebResult, ComposioResult
 from multi_agent.retrieval.retriever import RerankedRetriever
 
 
-# def _needs_composio(query: str) -> bool:
-#     """Detect if the query likely needs external Composio tools."""
-#     query_lower = query.lower()
-#     composio_keywords = [
-#         "github", "git hub", "repository", "repo", "pull request", "pr ", "issue", "commit",
-#         "google doc", "google docs", "gdoc", "docs.google.com",
-#         "youtube", "youtu.be", "video", "transcript",
-#         "hugging face", "huggingface", "hf.co", "model hub", "dataset hub",
-#         "context7", "context 7", "mcp", "library docs", "package docs",
-#         "tavily", "web search", "search the web",
-#     ]
-#     return any(keyword in query_lower for keyword in composio_keywords)
+def _needs_composio(query: str) -> bool:
+    """Detect if the query likely needs external Composio tools."""
+    query_lower = query.lower()
+    composio_keywords = [
+        "github", "git hub", "repository", "repo", "pull request", "pr ", "issue", "commit",
+        "google doc", "google docs", "gdoc", "docs.google.com",
+        "youtube", "youtu.be", "video", "transcript",
+        "hugging face", "huggingface", "hf.co", "model hub", "dataset hub",
+        "context7", "context 7", "mcp", "library docs", "package docs",
+    ]
+    return any(keyword in query_lower for keyword in composio_keywords)
 
 
 # Called in: multi_agent/api.py (chat)
@@ -52,6 +51,8 @@ async def run_streaming(
     user_gemini_key: str | None = None,
     user_tavily_key: str | None = None,
     selected_doc: str | None = None,
+    response_format: str = "markdown",
+    search_mode: str = "global",
 ) -> AsyncGenerator[str, None]:
     """
     Full pipeline as an async generator yielding answer tokens.
@@ -66,7 +67,7 @@ async def run_streaming(
 
     # ── Step 1: RAG Retrieval ─────────────────────────────────────────────────
     print(f"[SUPERVISOR] -> Invoking RAG Agent with original query: '{query}'...")
-    rag_result: RAGResult = rag_agent.run(query, retriever, chunks, selected_doc=selected_doc)
+    rag_result: RAGResult = rag_agent.run(query, retriever, chunks, selected_doc=selected_doc, search_mode=search_mode)
 
     # ── Step 2: Context Evaluation ────────────────────────────────────────────
     print("[SUPERVISOR] -> Invoking Evaluation Agent...")
@@ -74,6 +75,9 @@ async def run_streaming(
 
     # ── Step 3: Conditional Composio Tools ────────────────────────────────────
     composio_result: ComposioResult | None = None
+    if _needs_composio(query):
+        print("[SUPERVISOR] -> Invoking Composio Agent...")
+        composio_result = composio_agent.run(query, history_messages, user_gemini_key)
 
     # ── Step 4: Conditional Web Search ────────────────────────────────────────
     web_result: WebResult | None = None
@@ -113,6 +117,7 @@ async def run_streaming(
         web_result=web_result,
         composio_result=composio_result,
         user_gemini_key=user_gemini_key,
+        response_format=response_format,
     ):
         yield token
 
@@ -145,6 +150,9 @@ async def run(
 
     # ── Step 3: Conditional Composio Tools ────────────────────────────────────
     composio_result: ComposioResult | None = None
+    if _needs_composio(query):
+        print("[SUPERVISOR] -> Invoking Composio Agent...")
+        composio_result = composio_agent.run(query, history_messages, user_gemini_key)
 
     # ── Step 4: Conditional Web Search ────────────────────────────────────────
     web_result: WebResult | None = None
