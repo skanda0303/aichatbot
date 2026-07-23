@@ -67,7 +67,7 @@ async def run_streaming(
 
     # ── Step 1: RAG Retrieval ─────────────────────────────────────────────────
     print(f"[SUPERVISOR] -> Invoking RAG Agent with original query: '{query}'...")
-    rag_result: RAGResult = rag_agent.run(query, retriever, chunks, selected_doc=selected_doc, search_mode=search_mode)
+    rag_result: RAGResult = rag_agent.run(query, retriever, chunks, selected_doc=selected_doc)
 
     # ── Step 2: Context Evaluation ────────────────────────────────────────────
     print("[SUPERVISOR] -> Invoking Evaluation Agent...")
@@ -117,7 +117,6 @@ async def run_streaming(
         web_result=web_result,
         composio_result=composio_result,
         user_gemini_key=user_gemini_key,
-        response_format=response_format,
     ):
         yield token
 
