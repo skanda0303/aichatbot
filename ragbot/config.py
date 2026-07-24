@@ -3,7 +3,7 @@ config.py — Central configuration for the RAG Chatbot.
 
 All tunable constants (model names, retrieval weights, chunk sizes,
 server settings) live here. API keys are loaded from a .env file
-in the project root via python-dotenv.
+in the project root through python-dotenv.
 """
 
 import os
