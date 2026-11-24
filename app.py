@@ -54,11 +54,11 @@ class ChatRequest(BaseModel):
 
 @fastapi_app.get("/")
 async def get_index():
-    return FileResponse("index.html")
+    return FileResponse("index.html", headers={"Cache-Control": "no-cache"})
 
 @fastapi_app.get("/production_tables.css")
 async def get_css():
-    return FileResponse("production_tables.css")
+    return FileResponse("production_tables.css", headers={"Cache-Control": "no-cache"})
 
 @fastapi_app.get("/audioPlayer.js")
 async def get_js():

@@ -77,7 +77,7 @@ def _build_app(chunks, retriever, lifespan) -> FastAPI:
     # Route: GET /production_tables.css (FastAPI handler)
     @app.get("/production_tables.css")
     def serve_css():
-        return FileResponse(os.path.join(_PROJECT_ROOT, "production_tables.css"))
+        return FileResponse(os.path.join(_PROJECT_ROOT, "production_tables.css"), headers={"Cache-Control": "no-cache"})
 
     # Route: GET /audioPlayer.js (FastAPI handler)
     @app.get("/audioPlayer.js")
@@ -203,6 +203,6 @@ def _build_app(chunks, retriever, lifespan) -> FastAPI:
     # Route: GET / (FastAPI handler)
     @app.get("/")
     def root():
-        return FileResponse(os.path.join(_PROJECT_ROOT, "index.html"))
+        return FileResponse(os.path.join(_PROJECT_ROOT, "index.html"), headers={"Cache-Control": "no-cache"})
 
     return app
