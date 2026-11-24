@@ -1,11 +1,24 @@
-.msg.bot .bubble table { width:100%; margin:16px 0; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #dfe6df; border-radius:8px; overflow:hidden; }
-.msg.bot .bubble th { padding:10px 12px; color:#fff; background:#1f6a50; text-align:left; font-weight:700; }
-.msg.bot .bubble td { padding:10px 12px; color:#34443d; border-bottom:1px solid #edf1ec; vertical-align:top; }
-.msg.bot .bubble tr:nth-child(even) { background:#f6f8f4; }
-.msg.bot .bubble tr:hover { background:#edf3ec; }
-@media (max-width:760px) { .msg.bot .bubble table { display:block; overflow-x:auto; white-space:nowrap; } }
-.msg-meta a { color:#1f6a50; text-decoration:none; font-weight:600; }
-.msg-meta a:hover { text-decoration:underline; }
-.testing-placeholder { display:none; }
-.annotated-source { border-left-color:#d87442 !important; }
-.msg.bot .bubble td strong, .msg.bot .bubble p strong { color:#1f6a50; }
+.msg.bot .bubble table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 16px 0;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: .875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.msg.bot .bubble th,
+.msg.bot .bubble td {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.msg.bot .bubble th {
+  background: var(--hover);
+  text-align: left;
+}
+
+.msg.bot .bubble tbody tr:nth-child(even) { background: var(--field); }

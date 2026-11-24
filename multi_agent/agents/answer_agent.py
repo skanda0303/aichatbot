@@ -19,7 +19,7 @@ from datetime import datetime
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from multi_agent.models.schemas import RAGResult, WebResult, EvalResult, ComposioResult
+from multi_agent.models.schemas import RAGResult, WebResult, EvalResult
 from multi_agent.config import GOOGLE_API_KEY, LLM_MODEL, LLM_TEMPERATURE, MAX_HISTORY_MESSAGES
 from multi_agent.utils.helpers import format_chunks_for_prompt, sanitize_tool_output
 
@@ -62,7 +62,6 @@ def _build_user_message(
     rag_result: RAGResult,
     eval_result: EvalResult,
     web_result: WebResult | None,
-    composio_result: ComposioResult | None = None,
 ) -> str:
     """Assemble the context-enriched user message for the LLM."""
     parts: list[str] = []
@@ -72,16 +71,6 @@ def _build_user_message(
         rag_text = format_chunks_for_prompt(rag_result.retrieved_chunks, max_chunks=8)
         rag_text = sanitize_tool_output(rag_text)
         parts.append(f"=== Knowledge Base Context ===\n{rag_text}")
-
-    # ── Composio Tool Execution Context ──────────────────────────────────────
-    if composio_result and composio_result.tool_outputs:
-        composio_sections: list[str] = []
-        for i, output in enumerate(composio_result.tool_outputs, 1):
-            tool_name = composio_result.tool_names[i-1] if i-1 < len(composio_result.tool_names) else "External Tool"
-            output_clean = sanitize_tool_output(str(output))
-            composio_sections.append(f"[Tool {i}: {tool_name}]\n{output_clean}")
-        composio_text = "\n\n".join(composio_sections)
-        parts.append(f"=== Composio Tool Execution Context ===\n{composio_text}")
 
     # ── Web context (only when web agent ran) ─────────────────────────────────
     if web_result and web_result.web_context:
@@ -95,7 +84,7 @@ def _build_user_message(
     # ── No context at all ─────────────────────────────────────────────────────
     if not parts:
         parts.append(
-            "No relevant context was retrieved from the knowledge base, external tools, or the web. "
+            "No relevant context was retrieved from the knowledge base or the web. "
             "Answer from your general knowledge if possible, and be transparent about uncertainty."
         )
 
@@ -103,7 +92,7 @@ def _build_user_message(
     return (
         f"{context_block}\n\n---\n\n"
         f"User Question: {query}\n\n"
-        "INSTRUCTION: Answer the User Question using the provided Knowledge Base Context, Composio Tool Execution Context, or Web Search Context above. "
+        "INSTRUCTION: Answer the User Question using the provided Knowledge Base Context or Web Search Context above. "
         "Do NOT invent or extrapolate facts not present in the provided contexts."
     )
 
@@ -115,11 +104,10 @@ async def _generate_draft(
     rag_result: RAGResult,
     eval_result: EvalResult,
     web_result: WebResult | None = None,
-    composio_result: ComposioResult | None = None,
     user_gemini_key: str | None = None,
 ) -> str:
     """Generate the initial draft answer from context and history."""
-    user_msg = _build_user_message(query, rag_result, eval_result, web_result, composio_result)
+    user_msg = _build_user_message(query, rag_result, eval_result, web_result)
 
     messages = (
         [SystemMessage(content=_get_system_prompt())]
@@ -188,7 +176,6 @@ async def stream(
     rag_result: RAGResult,
     eval_result: EvalResult,
     web_result: WebResult | None = None,
-    composio_result: ComposioResult | None = None,
     user_gemini_key: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
@@ -196,7 +183,7 @@ async def stream(
     """
     try:
         final_ans = await run(
-            query, history_messages, rag_result, eval_result, web_result, composio_result, user_gemini_key
+            query, history_messages, rag_result, eval_result, web_result, user_gemini_key
         )
         # Yield the verified answer in small chunks to simulate streaming output
         chunk_size = 12
@@ -215,7 +202,6 @@ async def run(
     rag_result: RAGResult,
     eval_result: EvalResult,
     web_result: WebResult | None = None,
-    composio_result: ComposioResult | None = None,
     user_gemini_key: str | None = None,
 ) -> str:
     """
@@ -224,15 +210,15 @@ async def run(
     try:
         print("[ANSWER AGENT] Generating draft response...")
         draft = await _generate_draft(
-            query, history_messages, rag_result, eval_result, web_result, composio_result, user_gemini_key
+            query, history_messages, rag_result, eval_result, web_result, user_gemini_key
         )
         
-        if (rag_result.retrieved_chunks or (composio_result and composio_result.tool_outputs)) and not web_result:
-            print("[ANSWER AGENT] RAG or Composio tool context used — returning draft directly without Critic modification.")
+        if rag_result.retrieved_chunks and not web_result:
+            print("[ANSWER AGENT] RAG context used — returning draft directly without Critic modification.")
             return draft
 
         print(f"[ANSWER AGENT] Draft generated ({len(draft)} chars). Verifying values and claims via Critic LLM...")
-        context_text = _build_user_message(query, rag_result, eval_result, web_result, composio_result)
+        context_text = _build_user_message(query, rag_result, eval_result, web_result)
         final_ans = await _verify_and_correct(query, draft, context_text, user_gemini_key)
         return final_ans
     except Exception as e:

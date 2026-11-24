@@ -24,7 +24,6 @@ def log_routing_decision(
     route: str,
     rag_chunks: int = 0,
     web_pages: int = 0,
-    composio_tools: int = 0,
 ) -> None:
     """
     Append a routing log entry.
@@ -37,8 +36,7 @@ def log_routing_decision(
       "confidence": 0.93,
       "route": "rag_only",
       "rag_chunks": 8,
-      "web_pages": 0,
-      "composio_tools": 0
+      "web_pages": 0
     }
     """
     entry = {
@@ -50,7 +48,6 @@ def log_routing_decision(
         "route":            route,          # "rag_only" | "rag+web"
         "rag_chunks":       rag_chunks,
         "web_pages":        web_pages,
-        "composio_tools":   composio_tools,
     }
     try:
         with open(_LOG_PATH, "a", encoding="utf-8") as f:

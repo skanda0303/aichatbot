@@ -5,13 +5,11 @@ Coordinates the multi-agent pipeline:
   1. Receive user query + conversation history
   2. Call RAG Agent  → RAGResult
   3. Call Evaluation Agent → EvalResult
-  4. [Conditional] Call Composio Agent → ComposioResult (if query needs external tools)
-  5. [Conditional] Call Web Agent → WebResult  (only if sufficient == False)
-  6. Call Answer Agent → stream tokens to caller
+  4. [Conditional] Call Web Agent → WebResult  (only if sufficient == False)
+  5. Call Answer Agent → stream tokens to caller
 
 The Supervisor does NOT decide RAG-vs-Web upfront — it always runs RAG first
 and delegates the routing decision to the Evaluation Agent.
-Composio tools are invoked when the query explicitly mentions external services.
 
 Exposes:
   run_streaming()  — async generator yielding final answer tokens (for SSE)
@@ -23,23 +21,10 @@ from collections.abc import AsyncGenerator
 
 from langchain_core.documents import Document
 
-from multi_agent.agents import rag_agent, evaluation_agent, web_agent, answer_agent, query_rewriter_agent, composio_agent
+from multi_agent.agents import rag_agent, evaluation_agent, web_agent, answer_agent, query_rewriter_agent
 from multi_agent.evaluation.routing_logger import log_routing_decision
-from multi_agent.models.schemas import RAGResult, EvalResult, WebResult, ComposioResult
+from multi_agent.models.schemas import RAGResult, EvalResult, WebResult
 from multi_agent.retrieval.retriever import RerankedRetriever
-
-
-def _needs_composio(query: str) -> bool:
-    """Detect if the query likely needs external Composio tools."""
-    query_lower = query.lower()
-    composio_keywords = [
-        "github", "git hub", "repository", "repo", "pull request", "pr ", "issue", "commit",
-        "google doc", "google docs", "gdoc", "docs.google.com",
-        "youtube", "youtu.be", "video", "transcript",
-        "hugging face", "huggingface", "hf.co", "model hub", "dataset hub",
-        "context7", "context 7", "mcp", "library docs", "package docs",
-    ]
-    return any(keyword in query_lower for keyword in composio_keywords)
 
 
 # Called in: multi_agent/api.py (chat)
@@ -58,7 +43,7 @@ async def run_streaming(
     Full pipeline as an async generator yielding answer tokens.
 
     Execution flow:
-      Query → RAG Agent → Evaluation Agent → [Composio Agent] → [Web Agent] → Answer Agent → tokens
+      Query → RAG Agent → Evaluation Agent → [Web Agent] → Answer Agent → tokens
     """
     # ── Step 0: Query Rewriting (Web only) ────────────────────────────────────
     print(f"\n[SUPERVISOR] Original Query: '{query}'")
@@ -73,13 +58,7 @@ async def run_streaming(
     print("[SUPERVISOR] -> Invoking Evaluation Agent...")
     eval_result: EvalResult = evaluation_agent.run(query, rag_result, user_gemini_key)
 
-    # ── Step 3: Conditional Composio Tools ────────────────────────────────────
-    composio_result: ComposioResult | None = None
-    if _needs_composio(query):
-        print("[SUPERVISOR] -> Invoking Composio Agent...")
-        composio_result = composio_agent.run(query, history_messages, user_gemini_key)
-
-    # ── Step 4: Conditional Web Search ────────────────────────────────────────
+    # ── Step 3: Conditional Web Search ────────────────────────────────────────
     web_result: WebResult | None = None
     needs_explicit_web = any(kw in query.lower() for kw in ["web search", "search web", "google search", "today's news", "live price", "latest news"])
 
@@ -104,10 +83,9 @@ async def run_streaming(
         route=route,
         rag_chunks=len(rag_result.retrieved_chunks),
         web_pages=len(web_result.web_context) if web_result else 0,
-        composio_tools=len(composio_result.tool_names) if composio_result else 0,
     )
 
-    # ── Step 5: Answer Generation (streaming) ─────────────────────────────────
+    # ── Step 4: Answer Generation (streaming) ─────────────────────────────────
     print("[SUPERVISOR] -> Invoking Answer Agent (streaming)...")
     async for token in answer_agent.stream(
         query=query,
@@ -115,7 +93,6 @@ async def run_streaming(
         rag_result=rag_result,
         eval_result=eval_result,
         web_result=web_result,
-        composio_result=composio_result,
         user_gemini_key=user_gemini_key,
     ):
         yield token
@@ -147,13 +124,7 @@ async def run(
     print("[SUPERVISOR] -> Invoking Evaluation Agent...")
     eval_result: EvalResult = evaluation_agent.run(query, rag_result, user_gemini_key)
 
-    # ── Step 3: Conditional Composio Tools ────────────────────────────────────
-    composio_result: ComposioResult | None = None
-    if _needs_composio(query):
-        print("[SUPERVISOR] -> Invoking Composio Agent...")
-        composio_result = composio_agent.run(query, history_messages, user_gemini_key)
-
-    # ── Step 4: Conditional Web Search ────────────────────────────────────────
+    # ── Step 3: Conditional Web Search ────────────────────────────────────────
     web_result: WebResult | None = None
     if not eval_result.sufficient:
         print("[SUPERVISOR] RAG insufficient -> Invoking Web Agent...")
@@ -169,10 +140,9 @@ async def run(
         route=route,
         rag_chunks=len(rag_result.retrieved_chunks),
         web_pages=len(web_result.web_context) if web_result else 0,
-        composio_tools=len(composio_result.tool_names) if composio_result else 0,
     )
 
-    # ── Step 5: Answer Generation (blocking) ──────────────────────────────────
+    # ── Step 4: Answer Generation (blocking) ──────────────────────────────────
     print("[SUPERVISOR] -> Invoking Answer Agent (blocking)...")
     return await answer_agent.run(
         query=query,
@@ -180,6 +150,5 @@ async def run(
         rag_result=rag_result,
         eval_result=eval_result,
         web_result=web_result,
-        composio_result=composio_result,
         user_gemini_key=user_gemini_key,
     )

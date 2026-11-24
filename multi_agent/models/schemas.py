@@ -62,28 +62,3 @@ class WebResult(BaseModel):
         default=0.0,
         description="Average Tavily relevance score across returned results.",
     )
-
-
-class ComposioResult(BaseModel):
-    """Output from the Composio Agent (external tool execution)."""
-
-    tool_outputs: list[str] = Field(
-        default_factory=list,
-        description="Text output from each executed Composio tool.",
-    )
-    tool_names: list[str] = Field(
-        default_factory=list,
-        description="Names of the Composio tools that were executed.",
-    )
-    success: bool = Field(
-        default=False,
-        description="Whether the tool execution completed successfully.",
-    )
-    error: str | None = Field(
-        default=None,
-        description="Error message if tool execution failed.",
-    )
-    metadata: dict = Field(
-        default_factory=dict,
-        description="Additional metadata from tool execution (e.g., repo names, doc IDs, video IDs).",
-    )
