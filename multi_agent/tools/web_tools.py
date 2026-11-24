@@ -30,8 +30,12 @@ def tavily_search(query: str, user_tavily_key: str | None = None) -> list[dict]:
 
     The caller (web_agent) is responsible for fetching page content.
     """
+    api_key = user_tavily_key or TAVILY_API_KEY
+    if not api_key:
+        return []
+
     payload = {
-        "api_key": user_tavily_key or TAVILY_API_KEY,
+        "api_key": api_key,
         "query": query,
         "search_depth": "advanced",
         "include_answer": False,

@@ -230,9 +230,13 @@ def web_search(query: str) -> str:
 
         print(f"  [WEB TOOL] Querying Tavily API for: '{query}'")
         
+        api_key = os.getenv("TAVILY_API_KEY")
+        if not api_key:
+            return "Web search is unavailable. Set TAVILY_API_KEY to enable it."
+
         tavily_url = "https://api.tavily.com/search"
         payload = {
-            "api_key": "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",
+            "api_key": api_key,
             "query": query,
             "search_depth": "basic",
             "include_answer": False,

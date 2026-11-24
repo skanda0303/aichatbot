@@ -29,7 +29,7 @@ CHROMA_COLLECTION = "bge_m3_multi"                              # <-- separate c
 
 # API keys (loaded from .env)
 GOOGLE_API_KEY      = os.getenv("GOOGLE_API_KEY", "")
-TAVILY_API_KEY      = os.getenv("TAVILY_API_KEY", "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")
+TAVILY_API_KEY      = os.getenv("TAVILY_API_KEY", "")
 
 # Retrieval tuning — identical to ragbot/config.py
 RETRIEVER_K          = 12
