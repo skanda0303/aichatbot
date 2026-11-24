@@ -12,25 +12,31 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <link rel="stylesheet" href="/production_tables.css" />
   <style>
+
     :root {
       color-scheme: light;
-      --paper: #fdfaf4;
-      --shelf: #f3eee4;
-      --surface: #fffdf8;
-      --field: #f8f3ea;
-      --hover: #ebe2d5;
-      --line: #ddd2c3;
-      --field-line: #95887a;
-      --ink: #2b241f;
-      --muted: #65584e;
-      --accent: #864630;
-      --accent-hover: #693622;
-      --accent-wash: #f3e3da;
-      --button: #864630;
-      --button-hover: #693622;
-      --on-button: #fffaf4;
-      --danger: #a13730;
-      --shadow: 0 12px 36px rgb(60 39 25 / 12%);
+      --paper: #faf9fc;
+      --surface: #ffffff;
+      --library: #e9effb;
+      --field: #f0f0f8;
+      --hover: #e5e6f5;
+      --line: #d4d6e8;
+      --field-line: #797f9f;
+      --ink: #171c35;
+      --muted: #505979;
+      --accent: #3e45a3;
+      --accent-wash: #e8e9fa;
+      --button: #f8a079;
+      --button-hover: #ffb493;
+      --on-button: #2c1932;
+      --danger: #a13744;
+      --file-label: #41468b;
+      --file-wash: #e0e2fa;
+      --pdf-label: #883d45;
+      --pdf-wash: #ffdfd8;
+      --csv-label: #244780;
+      --csv-wash: #d6e4ff;
+      --shadow: 0 12px 40px rgb(0 0 0 / 16%);
       --sans: 'Atkinson Hyperlegible', system-ui, sans-serif;
       --serif: 'Crimson Pro', Georgia, serif;
       --mono: ui-monospace, Consolas, monospace;
@@ -38,23 +44,39 @@
 
     body.dark {
       color-scheme: dark;
-      --paper: #211d1a;
-      --shelf: #29231f;
-      --surface: #302923;
-      --field: #332c26;
-      --hover: #3e342c;
-      --line: #493e35;
-      --field-line: #8c7b6d;
-      --ink: #f2e8dc;
-      --muted: #c4b3a3;
-      --accent: #edae93;
-      --accent-hover: #fad0bf;
-      --accent-wash: #443027;
-      --button: #a05238;
-      --button-hover: #8d4833;
-      --on-button: #fffaf4;
-      --danger: #ffada5;
-      --shadow: 0 12px 36px rgb(0 0 0 / 28%);
+      --paper: #191b30;
+      --surface: #242744;
+      --library: #242e4b;
+      --field: #252941;
+      --hover: #333957;
+      --line: #383f61;
+      --field-line: #8992ba;
+      --ink: #f1effe;
+      --muted: #bcc3e1;
+      --accent: #bbc1ff;
+      --accent-wash: #303764;
+      --danger: #ffb4be;
+      --file-label: #dbd7ff;
+      --file-wash: #45416a;
+      --pdf-label: #ffcbbc;
+      --pdf-wash: #57394b;
+      --csv-label: #cbdfff;
+      --csv-wash: #334e7c;
+      --shadow: 0 16px 48px rgb(0 0 0 / 42%);
+    }
+
+    .sidebar {
+      color-scheme: dark;
+      --surface: #222e51;
+      --field: #19243f;
+      --hover: #2b3b64;
+      --line: #334368;
+      --field-line: #8190bd;
+      --ink: #f4f3ff;
+      --muted: #b6c2e4;
+      --accent: #c4ccff;
+      --accent-wash: #303e69;
+      --danger: #ffb4be;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
@@ -92,15 +114,22 @@
       min-width: 0;
       min-height: 0;
       padding: 22px 18px;
-      background: var(--shelf);
     }
-    .sidebar { border-right: 1px solid var(--line); }
-    .right-panel { border-left: 1px solid var(--line); }
+    .sidebar {
+      border-right: 1px solid var(--line);
+      background: #141e37;
+      color: var(--ink);
+    }
+    .right-panel {
+      border-left: 1px solid var(--line);
+      background: var(--library);
+    }
     .brand, .panel-title, .history-heading, .topbar,
     .workspace-heading, .viewer-actions { display: flex; align-items: center; gap: 10px; }
     .brand, .panel-title, .history-heading, .topbar { justify-content: space-between; }
     .brand { margin-bottom: 24px; }
     .brand strong {
+      color: #ffc8ae;
       font: 600 2.1rem/1 var(--serif);
       letter-spacing: -.035em;
     }
@@ -136,7 +165,14 @@
       font-size: .875rem;
       font-weight: 700;
     }
-    .new-chat { justify-content: flex-start; margin-bottom: 22px; }
+    .new-chat {
+      justify-content: flex-start;
+      margin-bottom: 22px;
+      border-color: transparent;
+      background: var(--accent-wash);
+      color: var(--ink);
+    }
+    .upload-btn { border-color: transparent; background: var(--csv-wash); color: var(--csv-label); }
     .new-chat:hover, .upload-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-wash); }
     .new-chat svg, .upload-btn svg { width: 16px; height: 16px; }
     .history-heading h2, .panel-title h2 { font-size: .9375rem; font-weight: 700; }
@@ -155,7 +191,7 @@
       text-align: left;
     }
     .chat-item:hover, .chat-item.active { background: var(--hover); }
-    .chat-item.active { border-color: var(--line); }
+    .chat-item.active { border-color: var(--field-line); background: var(--accent-wash); }
     .chat-item svg { margin-top: 2px; color: var(--muted); }
     .chat-item span, .doc-name { min-width: 0; }
     .chat-item strong, .doc-name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .875rem; }
@@ -184,6 +220,8 @@
       border-bottom: 1px solid var(--line);
     }
     .topbar h1 { font: 600 1.65rem/1 var(--serif); }
+    .workspace-heading svg, .welcome em { color: var(--accent); }
+    .welcome em { font-style: normal; }
     .status { margin-left: auto; text-align: right; color: var(--muted); font-size: .875rem; }
     .status:empty { margin: 0; }
     .messages {
@@ -198,19 +236,27 @@
       letter-spacing: -.035em;
     }
     .welcome p { max-width: 42ch; margin-top: 18px; color: var(--muted); font-size: 1.0625rem; }
-    .suggestions { display: grid; max-width: 420px; margin-top: 28px; border-top: 1px solid var(--line); }
+    .suggestions {
+      display: grid;
+      max-width: 420px;
+      margin-top: 28px;
+      border-radius: 10px;
+      background: var(--field);
+    }
     .suggestion {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       min-height: 46px;
-      padding: 9px 6px 9px 0;
+      padding: 9px 14px;
       border-bottom: 1px solid var(--line);
       text-align: left;
     }
     .suggestion svg { color: var(--accent); width: 16px; height: 16px; }
-    .suggestion:hover { color: var(--accent); background: var(--field); }
+    .suggestion:first-child { border-radius: 10px 10px 0 0; }
+    .suggestion:last-child { border: 0; border-radius: 0 0 10px 10px; }
+    .suggestion:hover { color: var(--accent); background: var(--hover); }
 
     .msg { margin: 0 0 24px; overflow-wrap: anywhere; }
     .msg.user { display: flex; justify-content: flex-end; }
@@ -241,7 +287,7 @@
       margin: auto;
       padding: 7px 7px 7px 14px;
       border: 1px solid var(--field-line);
-      border-radius: 12px;
+      border-radius: 15px;
       background: var(--surface);
     }
     .composer:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -273,20 +319,25 @@
       border-radius: 8px;
       text-align: left;
     }
-    .doc-card:hover, .doc-card.selected { background: var(--hover); }
+    .doc-card:hover { background: var(--hover); }
+    .doc-card.selected {
+      background: var(--accent-wash);
+      box-shadow: inset 1px 0 var(--accent);
+    }
     .doc-icon {
       display: grid;
       place-items: center;
       width: 38px;
       height: 34px;
       flex: none;
-      border: 1px solid var(--line);
-      border-radius: 5px;
-      background: var(--surface);
-      color: var(--muted);
+      border-radius: 6px;
+      background: var(--file-wash);
+      color: var(--file-label);
       font-size: .6875rem;
       font-weight: 700;
     }
+    .doc-icon[data-format="PDF"] { color: var(--pdf-label); background: var(--pdf-wash); }
+    .doc-icon[data-format="CSV"] { color: var(--csv-label); background: var(--csv-wash); }
     .empty { padding: 12px 4px; color: var(--muted); font-size: .875rem; }
 
     .viewer {
@@ -418,7 +469,7 @@
 
   <template id="welcome-template">
     <section class="welcome" id="welcome">
-      <h2>What are you looking for?</h2>
+      <h2>What are you <em>looking for?</em></h2>
       <p>Ask about a file, compare sources, or follow a question beyond your documents.</p>
       <div class="suggestions">
         <button class="suggestion" type="button"><span>Summarize my documents</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
@@ -541,7 +592,9 @@
           card.className = "doc-card";
           card.classList.toggle("selected", doc.name === activeDocument?.name);
           card.innerHTML = '<span class="doc-icon" aria-hidden="true"></span><span class="doc-name"><strong></strong><small></small></span>';
-          card.querySelector(".doc-icon").textContent = doc.type.slice(0, 3);
+          const icon = card.querySelector(".doc-icon");
+          icon.dataset.format = doc.type;
+          icon.textContent = doc.type.slice(0, 3);
           const name = card.querySelector("strong");
           name.textContent = doc.name;
           name.title = doc.name;
